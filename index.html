@@ -331,23 +331,36 @@
                              <div class="semester-content" id="content-${sem}" onscroll="drawPaths(event)"></div>`;
             container.appendChild(col);
             const content = col.querySelector('.semester-content');
+            
+            // 필터링 없이 해당 학기의 모든 데이터 가져오기
             const semData = rawData.filter(r => r[`${sem}_학점`] && r[`${sem}_학점`] !== '0');
             
+            // 학교 지정 (필수)
             const mandatory = semData.filter(r => r['학교지정'] === 'True');
             if (mandatory.length > 0) {
                 const sep = document.createElement('div'); sep.className = 'group-separator'; sep.innerText = '공통 필수';
                 content.appendChild(sep);
                 mandatory.forEach(r => content.appendChild(createSimItem(r, true, sem)));
             }
+            
+            // 일반/진로/융합/고시외 등 모든 선택 과목
             const choices = semData.filter(r => r['학교지정'] !== 'True');
             const groups = {};
-            choices.forEach(r => { const gid = r['선택군_코드'] || '기타'; if (!groups[gid]) groups[gid] = []; groups[gid].push(r); });
+            choices.forEach(r => { 
+                const gid = r['선택군_코드'] || r['과목유형'] || '기타'; 
+                if (!groups[gid]) groups[gid] = []; 
+                groups[gid].push(r); 
+            });
+            
             Object.keys(groups).sort().forEach(gid => {
                 const groupItems = groups[gid];
-                const limit = groupItems[0]['선택군_선택수'] || '1';
-                const sep = document.createElement('div'); sep.className = 'group-separator'; sep.innerHTML = `<span>선택 ${gid}</span> <span style="color:#ef4444">${limit}개</span>`;
+                const firstItem = groupItems[0];
+                const limit = firstItem['선택군_선택수'] || '1';
+                const sep = document.createElement('div'); 
+                sep.className = 'group-separator'; 
+                sep.innerHTML = `<span>${gid}</span> ${firstItem['선택군_선택수'] ? `<span style="color:#ef4444">${limit}개 선택</span>` : ''}`;
                 content.appendChild(sep);
-                groupItems.forEach(r => content.appendChild(createSimItem(r, false, sem, gid)));
+                groupItems.forEach(r => content.appendChild(createSimItem(r, false, sem, firstItem['선택군_코드'] ? gid : null)));
             });
         });
         updateSummary();
@@ -382,6 +395,7 @@
             </div>
             <div class="badges-row">
                 <span class="tag" style="background-color:${getCategoryColor(cat)}">${cat}</span>
+                <span class="tag" style="background-color:#64748b; font-size:0.55rem;">${row['과목유형'] || ''}</span>
             </div>`;
 
         item.onmouseover = () => {
@@ -420,7 +434,7 @@
                 const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
                 return s === sem && r && r['선택군_코드'] === groupId;
             }).length;
-            if (selected >= limit && limit === 1) {
+            if (selected >= limit && limit === 1 && groupId) {
                 Array.from(selectedCourses).forEach(id => {
                     if (id.startsWith(sem)) {
                         const [s, n] = id.split("_");
@@ -432,7 +446,7 @@
                         }
                     }
                 });
-            } else if (selected >= limit) { alert(`최대 ${limit}개까지 선택 가능합니다.`); return; }
+            } else if (selected >= limit && groupId) { alert(`최대 ${limit}개까지 선택 가능합니다.`); return; }
             selectedCourses.add(rowId);
             el.classList.add('selected');
             el.querySelector('.check-box').innerText = 'check_box';
@@ -483,8 +497,13 @@
                 
                 currentSemItems.forEach(from => {
                     nextSemItems.forEach(to => {
-                        const isActive = from.classList.contains('selected') || from.classList.contains('mandatory') || 
-                                         to.classList.contains('selected') || to.classList.contains('mandatory');
+                        // 화살표 로직 수정: 둘 다 (선택됨 OR 필수) 일 때만 화살표를 진하게 표시
+                        // 선택되지 않은 과목끼리의 연결은 그리지 않음
+                        const fromActive = from.classList.contains('selected') || from.classList.contains('mandatory');
+                        const toActive = to.classList.contains('selected') || to.classList.contains('mandatory');
+                        
+                        if (!fromActive || !toActive) return;
+
                         const isSelectedPath = from.classList.contains('selected') && to.classList.contains('selected');
 
                         const fromRect = from.getBoundingClientRect(), toRect = to.getBoundingClientRect();
@@ -504,7 +523,7 @@
                         path.style.stroke = getCategoryColor(cat);
                         
                         if (isSelectedPath) path.classList.add('selected-path');
-                        else if (isActive) path.classList.add('active');
+                        else path.classList.add('active'); // 필수 포함 경로는 active
                         
                         svg.appendChild(path);
                     });
