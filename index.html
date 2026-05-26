@@ -170,7 +170,15 @@
             transition: all 0.2s ease;
         }
 
-        .course-item.mandatory { cursor: default; background-color: #f8fafc; }
+        .course-item.mandatory { 
+            cursor: default; 
+            background-color: #e2e8f0; /* 더 확실한 회색 음영 */
+            border-color: #cbd5e1;
+            color: #64748b; /* 텍스트 색상 약화 */
+        }
+        .course-item.mandatory .check-box { color: #94a3b8; }
+        .course-item.mandatory .course-name { color: #475569; }
+        .course-item.mandatory .tag { opacity: 0.7; } /* 태그도 약간 투명하게 */
 
         /* 호버 시 동일 선택군 강조 (테두리) */
         .course-item.group-hover {
