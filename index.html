@@ -115,15 +115,15 @@
             min-width: 150px;
         }
 
-        /* 하단 페이드 마스크 */
+        /* 하단 페이드 마스크: 더 강하고 길게 수정 */
         .semester-panel::after {
             content: "";
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 40px;
-            background: linear-gradient(transparent, rgba(255, 255, 255, 0.95));
+            height: 80px; /* 더 길게 */
+            background: linear-gradient(transparent, rgba(255, 255, 255, 1) 90%); /* 더 하얗게 */
             pointer-events: none;
             transition: opacity 0.3s;
             z-index: 20;
@@ -146,7 +146,7 @@
         .semester-content {
             flex: 1;
             overflow-y: auto;
-            padding: 8px 8px 40px 8px;
+            padding: 8px 8px 80px 8px; /* 하단 여백 확대 */
             scrollbar-width: thin;
             z-index: 10;
         }
@@ -158,7 +158,7 @@
             padding: 4px 6px;
             margin-bottom: 6px;
             border-radius: 6px;
-            border: 1px solid #e2e8f0;
+            border: 2px solid #e2e8f0; /* 테두리 약간 두껍게 */
             cursor: pointer;
             display: flex;
             flex-direction: column;
@@ -167,10 +167,22 @@
             background-color: white;
             position: relative;
             z-index: 10;
-            transition: background-color 0.2s;
+            transition: all 0.2s ease;
         }
 
         .course-item.mandatory { cursor: default; background-color: #f8fafc; }
+
+        /* 호버 시 동일 선택군 강조 (테두리) */
+        .course-item.group-hover {
+            border-color: #64748b !important;
+            box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.1);
+            transform: translateY(-1px);
+        }
+
+        /* 호버 시 동일 교과군 강조 (음영) */
+        .course-item.cat-hover {
+            background-color: #f1f5f9 !important;
+        }
 
         .course-item.selected {
             background-color: #f0f9ff !important;
@@ -477,6 +489,17 @@
         const headers = Object.keys(rawData[0]).filter(h => !['원본행', '선택군_행범위'].includes(h));
         headers.forEach(h => container.innerHTML += `<th style="padding:8px; border:1px solid #e2e8f0; text-align:left;">${h}</th>`);
         container.innerHTML += '</tr></thead><tbody id="fullTableBody"></tbody></table>';
+        const tbody = document.getElementById('fullTableBody');
+        rawData.forEach(row => {
+            let tr = '<tr>'; headers.forEach(h => tr += `<td style="padding:8px; border:1px solid #e2e8f0;">${row[h] || ''}</td>`);
+            tr += '</tr>'; tbody.innerHTML += tr;
+        });
+    }
+    init();
+</script>
+</body>
+</html>
+</thead><tbody id="fullTableBody"></tbody></table>';
         const tbody = document.getElementById('fullTableBody');
         rawData.forEach(row => {
             let tr = '<tr>'; headers.forEach(h => tr += `<td style="padding:8px; border:1px solid #e2e8f0;">${row[h] || ''}</td>`);
