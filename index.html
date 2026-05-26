@@ -122,8 +122,8 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 80px; /* 더 길게 */
-            background: linear-gradient(transparent, rgba(255, 255, 255, 1) 90%); /* 더 하얗게 */
+            height: 80px;
+            background: linear-gradient(transparent, rgba(255, 255, 255, 1) 90%);
             pointer-events: none;
             transition: opacity 0.3s;
             z-index: 20;
@@ -146,7 +146,7 @@
         .semester-content {
             flex: 1;
             overflow-y: auto;
-            padding: 8px 8px 80px 8px; /* 하단 여백 확대 */
+            padding: 8px 8px 80px 8px;
             scrollbar-width: thin;
             z-index: 10;
         }
@@ -158,7 +158,7 @@
             padding: 4px 6px;
             margin-bottom: 6px;
             border-radius: 6px;
-            border: 2px solid #e2e8f0; /* 테두리 약간 두껍게 */
+            border: 2px solid #e2e8f0;
             cursor: pointer;
             display: flex;
             flex-direction: column;
@@ -370,7 +370,9 @@
         const rowId = `${sem}_${row['과목명']}`;
         const cat = row['교과군'];
         item.className = `course-item ${isMandatory ? 'mandatory' : 'choice'}`;
-        item.dataset.cat = cat; item.dataset.sem = sem;
+        item.dataset.cat = cat; 
+        item.dataset.sem = sem;
+        if (groupId) item.dataset.group = `${sem}_${groupId}`;
         item.id = `item_${rowId.replace(/\s/g, '_')}`;
 
         item.innerHTML = `
@@ -381,6 +383,18 @@
             <div class="badges-row">
                 <span class="tag" style="background-color:${getCategoryColor(cat)}">${cat}</span>
             </div>`;
+
+        item.onmouseover = () => {
+            const currentGroup = item.dataset.group;
+            const currentCat = item.dataset.cat;
+            document.querySelectorAll('.course-item').forEach(el => {
+                if (currentGroup && el.dataset.group === currentGroup) el.classList.add('group-hover');
+                if (currentCat && el.dataset.cat === currentCat) el.classList.add('cat-hover');
+            });
+        };
+        item.onmouseout = () => {
+            document.querySelectorAll('.course-item').forEach(el => el.classList.remove('group-hover', 'cat-hover'));
+        };
 
         if (!isMandatory) item.onclick = () => toggleSelection(item, row, sem, groupId);
         return item;
@@ -437,47 +451,37 @@
 
     function drawPaths(e) {
         if (e && e.target) updateScrollMasks();
-
         const svg = document.getElementById('svgOverlay');
         svg.innerHTML = '';
         const svgRect = svg.getBoundingClientRect();
-        
         const groups = {};
         document.querySelectorAll('.course-item').forEach(el => {
             const cat = el.dataset.cat;
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(el);
         });
-
         Object.keys(groups).forEach(cat => {
             const items = groups[cat].sort((a, b) => semesters.indexOf(a.dataset.sem) - semesters.indexOf(b.dataset.sem));
             for (let i = 0; i < items.length - 1; i++) {
                 const from = items[i], to = items[i+1];
                 if (from.dataset.sem === to.dataset.sem) continue;
-                
                 const isActive = from.classList.contains('selected') || from.classList.contains('mandatory') || 
                                  to.classList.contains('selected') || to.classList.contains('mandatory');
                 const isSelectedPath = from.classList.contains('selected') && to.classList.contains('selected');
-
                 const fromRect = from.getBoundingClientRect(), toRect = to.getBoundingClientRect();
                 const fromParent = from.closest('.semester-content').getBoundingClientRect(), toParent = to.closest('.semester-content').getBoundingClientRect();
-                
                 const isVis = fromRect.bottom > fromParent.top && fromRect.top < fromParent.bottom && toRect.bottom > toParent.top && toRect.top < toParent.bottom;
                 if (!isVis) continue;
-
                 const x1 = fromRect.right - svgRect.left, y1 = (fromRect.top + fromRect.bottom)/2 - svgRect.top;
                 const x2 = toRect.left - svgRect.left, y2 = (toRect.top + toRect.bottom)/2 - svgRect.top;
-
                 const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 const cp = x1 + (x2 - x1)/2;
                 path.setAttribute("d", `M ${x1} ${y1} C ${cp} ${y1}, ${cp} ${y2}, ${x2} ${y2}`);
                 path.setAttribute("class", "path-arrow");
                 path.dataset.cat = cat;
                 path.style.stroke = getCategoryColor(cat);
-                
                 if (isSelectedPath) path.classList.add('selected-path');
                 else if (isActive) path.classList.add('active');
-                
                 svg.appendChild(path);
             }
         });
@@ -489,17 +493,6 @@
         const headers = Object.keys(rawData[0]).filter(h => !['원본행', '선택군_행범위'].includes(h));
         headers.forEach(h => container.innerHTML += `<th style="padding:8px; border:1px solid #e2e8f0; text-align:left;">${h}</th>`);
         container.innerHTML += '</tr></thead><tbody id="fullTableBody"></tbody></table>';
-        const tbody = document.getElementById('fullTableBody');
-        rawData.forEach(row => {
-            let tr = '<tr>'; headers.forEach(h => tr += `<td style="padding:8px; border:1px solid #e2e8f0;">${row[h] || ''}</td>`);
-            tr += '</tr>'; tbody.innerHTML += tr;
-        });
-    }
-    init();
-</script>
-</body>
-</html>
-</thead><tbody id="fullTableBody"></tbody></table>';
         const tbody = document.getElementById('fullTableBody');
         rawData.forEach(row => {
             let tr = '<tr>'; headers.forEach(h => tr += `<td style="padding:8px; border:1px solid #e2e8f0;">${row[h] || ''}</td>`);
