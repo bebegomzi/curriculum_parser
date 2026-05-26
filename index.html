@@ -122,8 +122,8 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 80px; /* 더 길게 */
-            background: linear-gradient(transparent, rgba(255, 255, 255, 1) 90%); /* 더 하얗게 */
+            height: 80px;
+            background: linear-gradient(transparent, rgba(255, 255, 255, 1) 90%);
             pointer-events: none;
             transition: opacity 0.3s;
             z-index: 20;
@@ -146,7 +146,7 @@
         .semester-content {
             flex: 1;
             overflow-y: auto;
-            padding: 8px 8px 80px 8px; /* 하단 여백 확대 */
+            padding: 8px 8px 80px 8px;
             scrollbar-width: thin;
             z-index: 10;
         }
@@ -158,7 +158,7 @@
             padding: 4px 6px;
             margin-bottom: 6px;
             border-radius: 6px;
-            border: 2px solid #e2e8f0; /* 테두리 약간 두껍게 */
+            border: 2px solid #e2e8f0;
             cursor: pointer;
             display: flex;
             flex-direction: column;
@@ -172,24 +172,18 @@
 
         .course-item.mandatory { 
             cursor: default; 
-            background-color: #e2e8f0; /* 더 확실한 회색 음영 */
+            background-color: #e2e8f0;
             border-color: #cbd5e1;
-            color: #64748b; /* 텍스트 색상 약화 */
+            color: #64748b;
         }
         .course-item.mandatory .check-box { color: #94a3b8; }
         .course-item.mandatory .course-name { color: #475569; }
-        .course-item.mandatory .tag { opacity: 0.7; } /* 태그도 약간 투명하게 */
+        .course-item.mandatory .tag { opacity: 0.7; }
 
-        /* 호버 시 동일 선택군 강조 (테두리) */
         .course-item.group-hover {
             border-color: #64748b !important;
             box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.1);
             transform: translateY(-1px);
-        }
-
-        /* 호버 시 동일 교과군 강조 (음영) */
-        .course-item.cat-hover {
-            /* JS에서 dynamic하게 설정 */
         }
 
         .course-item.selected {
@@ -253,9 +247,34 @@
         .stat-val { font-weight: 700; color: var(--md-sys-color-primary); }
 
         .hidden { display: none !important; }
+
+        /* Course Tooltip Styling */
+        #courseTooltip {
+            position: fixed;
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 5000;
+            width: 280px;
+            pointer-events: none;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+        .tooltip-title { font-weight: 700; font-size: 0.9rem; color: var(--md-sys-color-primary); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 4px; }
+        .tooltip-row { display: flex; gap: 8px; }
+        .tooltip-label { font-weight: 700; color: #64748b; flex-shrink: 0; width: 80px; }
+        .tooltip-value { color: #1e293b; }
+        .tooltip-desc { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #e2e8f0; color: #475569; font-style: italic; }
     </style>
 </head>
 <body>
+
+<div id="courseTooltip"></div>
 
 <header>
     <div style="display:flex; align-items:center; gap:8px;">
@@ -295,6 +314,87 @@
     let selectedCourses = new Set();
     const semesters = ["1-1", "1-2", "2-1", "2-2", "3-1", "3-2"];
 
+    const courseMeta = {
+        "공통국어1": { "설명": "국어의 기초적인 소양을 기르고 다양한 매체와 텍스트를 비판적으로 이해하며 소통하는 능력을 기르는 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "공통국어2": { "설명": "언어 생활의 기초를 다지고 비판적 사고와 창의적 표현 능력을 심화하는 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "문학": { "설명": "문학 작품의 감상과 비평을 통해 인간과 세계를 깊이 있게 이해하고 문학적 감수성을 기르는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "독서와 작문": { "설명": "다양한 분야의 글을 비판적으로 읽고 분석하며, 자신의 생각을 논리적으로 서술하는 역량을 기르는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "화법과 언어": { "설명": "언어의 특성과 국어의 구조를 이해하고, 다양한 상황에 적합한 구어 소통 능력을 기르는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "비판적 사고와 작문": { "설명": "논리적 사고력을 바탕으로 정보를 분석하고 자신의 견해를 창의적으로 표현하는 능력을 기르는 융합 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "고전읽기": { "설명": "인류의 지혜가 담긴 동서양의 고전을 읽으며 깊이 있는 성찰과 인문학적 소양을 기르는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "공통수학1": { "설명": "수학의 기본 개념과 원리를 이해하고 논리적 사고력을 기르는 기초 과목으로, 다항식과 방정식을 다룹니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "공통수학2": { "설명": "도형의 방정식, 집합과 명제, 함수 등을 학습하여 수학적 탐구 역량을 강화하는 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "대수": { "설명": "지수함수와 로그함수, 삼각함수, 수열 등 수학의 핵심적인 개념을 심화 학습하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "미적분I": { "설명": "함수의 극한과 연속, 다항함수의 미분과 적분 등 미적분의 기본 원리를 다루는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "확률과 통계": { "설명": "불확실한 현상을 수학적으로 모델링하고 데이터를 분석 및 해석하는 능력을 기르는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "수학과제 탐구": { "설명": "수학적 지식을 활용하여 스스로 과제를 설정하고 탐구하는 과정을 통해 문제 해결 능력을 기르는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "미적분II": { "설명": "미적분I의 개념을 초월함수로 확장하여 심화된 미분과 적분 기법을 학습하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "기하": { "설명": "이차곡선과 평면 벡터, 공간 도형과 좌표를 통해 기하학적 통찰력을 기르는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "인공지능 수학": { "설명": "인공지능의 기본 원리에 포함된 수학적 개념인 행렬, 미분 등을 이해하고 활용하는 융합 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "공통영어1": { "설명": "일상생활과 다양한 주제에 관한 영어 의사소통 능력을 기르고 기초적인 언어 소양을 함양하는 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "공통영어2": { "설명": "공통영어1을 심화하여 실제적인 상황에서의 의사소통 역량을 종합적으로 기르는 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "영어I": { "설명": "영미권 문화를 이해하고 학문적, 실무적 상황에서 영어 텍스트를 정확하게 이해하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "영어II": { "설명": "더욱 복잡하고 전문적인 주제의 영어를 이해하며 논리적인 의사소통 능력을 심화하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "실용 영어": { "설명": "일상생활 및 미래 직업 현장에서 필요한 영어 의사소통 능력을 실습 중심으로 기르는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "영어권 문화": { "설명": "영어를 사용하는 국가의 다양한 문화적 특성을 이해하고 글로벌 시민 의식을 고취하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "진로 영어": { "설명": "자신의 진로와 관련된 전문 분야의 정보를 영어로 탐색하고 활용하는 능력을 기르는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "영미 문학 읽기": { "설명": "영미 문학의 대표작을 읽으며 문학적 감수성을 기르고 영어 문해력을 심화하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "한국사1": { "설명": "전근대 한국사의 흐름을 체계적으로 파악하고 우리 역사의 고유성을 이해하는 필수 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "한국사2": { "설명": "근현대사의 전개 과정을 심층적으로 탐구하고 현대 사회의 기원과 과제를 이해하는 필수 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "통합사회1": { "설명": "인간과 사회를 바라보는 관점을 기르고 지리, 사회학적 관점에서 사회를 이해하는 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "통합사회2": { "설명": "정치, 법, 경제, 윤리적 관점을 통합하여 현대 사회의 갈등과 해결 방안을 모색하는 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "지리 탐구": { "설명": "지역의 자연 및 인문 환경과 공간 구조를 탐구하며 세계 각 지역의 특성을 이해하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "세계사 탐구": { "설명": "인류 문명의 발생부터 현재까지의 흐름을 탐구하여 세계 역사를 입체적으로 이해하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "정치와 법 탐구": { "설명": "민주 정치의 원리와 법의 체계를 이해하고 공동체의 문제 해결에 참여하는 역량을 기르는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "윤리 탐구": { "설명": "동서양 윤리 사상을 탐구하고 자신의 삶에 비추어 도덕적 판단 능력을 기르는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "사회문제 탐구": { "설명": "현대 사회의 다양한 갈등과 문제를 탐구하고 합리적인 해결 방안을 모색하는 융합 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "기후변화와 지속가능한 세계": { "설명": "기후 위기의 원인과 영향을 분석하고 지속 가능한 미래를 위한 인류의 대응을 탐구하는 융합 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "여행지리": { "설명": "여행을 매개로 지역의 매력과 특성을 발견하고 지리적 가치를 이해하는 융합 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "현대 사회와 윤리": { "설명": "현대 사회에서 발생하는 다양한 도덕적 쟁점에 대해 윤리적으로 성찰하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "통합과학1": { "설명": "자연 현상을 물질과 에너지, 생명 시스템 등의 관점에서 통합적으로 이해하는 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "통합과학2": { "설명": "변화와 다양성, 환경과 에너지 등을 중심으로 과학적 원리를 탐구하는 공통 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "과학탐구실험1": { "설명": "실험과 실습을 통해 과학적 탐구 원리를 체득하고 문제 해결 능력을 기르는 공통 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "과학탐구실험2": { "설명": "실험 설계 및 수행 역량을 심화하여 과학적 태도와 사고력을 함양하는 공통 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "물리학": { "설명": "자연의 기본 원리인 힘과 운동, 에너지 등을 학습하여 과학적 사고력을 기르는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "화학": { "설명": "물질의 구성과 변화를 탐구하고 화학 반응의 원리를 이해하여 학문적 기초를 다지는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "생명과학": { "설명": "생명 현상의 원리를 세포, 유전, 항상성 등을 중심으로 탐구하여 생명에 대한 이해를 넓히는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "지구과학": { "설명": "지구와 우주의 구성 및 현상을 탐구하고 환경의 변화를 과학적으로 이해하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "역학과 에너지": { "설명": "물체의 운동과 평형, 에너지 보존 법칙 등 역학의 핵심 원리를 심화 학습하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "전자기와 양자": { "설명": "전자기 현상과 양자 물리 등 미시 세계의 에너지와 정보를 다루는 심화 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "물질과 에너지": { "설명": "화학적 에너지의 출입과 물질의 상태 변화를 다루며 화학의 원리를 깊이 탐구하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "화학 반응의 세계": { "설명": "다양한 화학 반응의 경로와 기제를 심층적으로 탐구하고 응용을 학습하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "세포와 유전": { "설명": "세포의 구조와 생명 활동, 유전 정보의 전달 원리를 심화 학습하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "생물의 진화": { "설명": "생명의 기원과 진화 과정, 생태계의 상호작용을 통합적으로 이해하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "지구 시스템 과학": { "설명": "지각, 해양, 대기의 상호작용과 지구 시스템의 안정성을 심도 있게 탐구하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "행성 우주 과학": { "설명": "태양계와 우주의 구조, 천체 현상의 과학적 원리를 심화 학습하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "과학과제 탐구": { "설명": "과학적 방법론을 활용하여 스스로 탐구 과제를 수행하고 연구 역량을 함양하는 융합 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "융합과학 탐구": { "설명": "여러 과학 분야의 지식을 융합하여 실생활의 문제를 창의적으로 해결하는 융합 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "기후변화와 환경생태": { "설명": "기후 변화가 생태계에 미치는 영향을 분석하고 환경 보전을 위한 과학적 대응을 탐구하는 융합 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "체육": { "설명": "신체 활동을 통해 건강을 증진하고 스포츠 정신과 도전 의식을 함양하는 필수 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "운동과 건강": { "설명": "자신에게 적합한 운동 계획을 수립하고 실천함으로써 건강 관리 능력을 기르는 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "스포츠 생활": { "설명": "스포츠 참여를 통해 건전한 여가 생활을 영위하고 사회성을 함양하는 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "체육 탐구": { "설명": "체육과 스포츠에 대한 이론적 탐구를 통해 신체 문화에 대한 이해와 소양을 기르는 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "음악": { "설명": "가창, 기악, 작곡 등 창의적 표현 활동을 통해 음악적 감수성을 기르는 필수 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "미술": { "설명": "다양한 매체와 기법을 활용하여 자신의 생각과 느낌을 시각적으로 표현하는 필수 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "연극": { "설명": "공동체와의 소통을 통해 공연 예술의 원리를 이해하고 창의적으로 표현하는 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "음악 감상과 비평": { "설명": "다양한 시대와 장르의 음악을 감상하고 그 가치를 비평적으로 분석하여 안목을 기르는 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "미술 감상과 비평": { "설명": "미술 작품을 비평적으로 감상하며 미적 가치를 이해하고 예술에 대한 안목을 넓히는 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "기술·가정": { "설명": "현대 사회의 기술 변화를 이해하고 실전적인 가정생활 및 진로 설계 역량을 기르는 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "정보": { "설명": "컴퓨팅 사고력을 바탕으로 알고리즘과 프로그래밍 능력을 함양하여 문제를 해결하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "인공지능 기초": { "설명": "인공지능의 원리와 데이터 활용, 윤리적 쟁점을 이해하고 기술을 체험하는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "창의공학 설계": { "설명": "공학적 설계 과정을 통해 실생활의 문제를 창의적으로 해결하는 공학적 사고력을 기르는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "지식 재산 일반": { "설명": "발명과 특허, 저작권 등 지식 재산의 가치를 이해하고 창출 및 관리 역량을 기르는 진로 선택 과목입니다.", "성적산출방식": "성취도(3단계)" },
+        "독일어I": { "설명": "독일어의 기초 의사소통 능력을 기르고 독일어권의 다양한 문화를 이해하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "프랑스어I": { "설명": "프랑스어의 기본 표현을 익혀 소통하며 프랑스어권 문화를 경험하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "스페인어I": { "설명": "스페인어권 문화에 대한 이해를 바탕으로 기초적인 소통 능력을 함양하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "중국어I": { "설명": "중국어의 기초 발음과 문장 구조를 익히고 문화를 이해하여 소통 역량을 기르는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "일본어I": { "설명": "일본어의 기초적인 표현 능력을 기르고 문화를 이해하여 소통 능력을 기르는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "한문": { "설명": "한문으로 된 글을 읽고 이해하며 선인들의 지혜와 가치관을 성찰하는 일반 선택 과목입니다.", "성적산출방식": "석차등급(5등급)+성취도(5단계)" },
+        "교육학": { "설명": "교육의 본질과 원리를 이해하고 인간 발달과 학습 과정을 탐구하는 교양 과목입니다.", "성적산출방식": "P/F" },
+        "심리학": { "설명": "인간의 마음과 행동 원리를 과학적으로 탐구하여 자아 이해와 관계 능력을 증진하는 교양 과목입니다.", "성적산출방식": "P/F" },
+        "논술": { "설명": "비판적 사고와 논리적 표현 능력을 바탕으로 자신의 생각을 일관성 있게 서술하는 교양 과목입니다.", "성적산출방식": "P/F" }
+    };
+
     function getCategoryColor(cat) {
         if (cat.includes('국어')) return 'var(--cat-국어)';
         if (cat.includes('수학')) return 'var(--cat-수학)';
@@ -313,17 +413,10 @@
             if (!response.ok) throw new Error();
             const text = await response.text();
             Papa.parse(text, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    rawData = results.data;
-                    renderSimulator();
-                    window.addEventListener('resize', () => drawPaths());
-                }
+                header: true, skipEmptyLines: true,
+                complete: function(results) { rawData = results.data; renderSimulator(); window.addEventListener('resize', () => drawPaths()); }
             });
-        } catch (e) {
-            document.getElementById('tab-simulator').innerHTML = `<div style="grid-column: span 6; padding: 100px; text-align: center;">데이터 로딩 실패.</div>`;
-        }
+        } catch (e) { document.getElementById('tab-simulator').innerHTML = `<div style="grid-column: span 6; padding: 100px; text-align: center;">데이터 로딩 실패.</div>`; }
     }
 
     function switchTab(tab) {
@@ -334,150 +427,108 @@
     }
 
     function renderSimulator() {
-        const container = document.getElementById('tab-simulator');
-        container.innerHTML = '';
+        const container = document.getElementById('tab-simulator'); container.innerHTML = '';
         semesters.forEach(sem => {
-            const col = document.createElement('div');
-            col.className = 'semester-panel';
+            const col = document.createElement('div'); col.className = 'semester-panel';
             const [grade, term] = sem.split("-");
             col.innerHTML = `<div class="semester-header ${term === '1' ? 'sem-header-1' : 'sem-header-2'}">${grade}학년 ${term}학기</div>
                              <div class="semester-content" id="content-${sem}" onscroll="drawPaths(event)"></div>`;
             container.appendChild(col);
             const content = col.querySelector('.semester-content');
-            
-            // 필터링 없이 해당 학기의 모든 데이터 가져오기
             const semData = rawData.filter(r => r[`${sem}_학점`] && r[`${sem}_학점`] !== '0');
-            
-            // 학교 지정 (필수)
             const mandatory = semData.filter(r => r['학교지정'] === 'True');
             if (mandatory.length > 0) {
-                const sep = document.createElement('div'); sep.className = 'group-separator'; sep.innerText = '공통 필수';
-                content.appendChild(sep);
+                const sep = document.createElement('div'); sep.className = 'group-separator'; sep.innerText = '공통 필수'; content.appendChild(sep);
                 mandatory.forEach(r => content.appendChild(createSimItem(r, true, sem)));
             }
-            
-            // 일반/진로/융합/고시외 등 모든 선택 과목
             const choices = semData.filter(r => r['학교지정'] !== 'True');
             const groups = {};
-            choices.forEach(r => { 
-                const gid = r['선택군_코드'] || r['과목유형'] || '기타'; 
-                if (!groups[gid]) groups[gid] = []; 
-                groups[gid].push(r); 
-            });
-            
+            choices.forEach(r => { const gid = r['선택군_코드'] || r['과목유형'] || '기타'; if (!groups[gid]) groups[gid] = []; groups[gid].push(r); });
             Object.keys(groups).sort().forEach(gid => {
-                const groupItems = groups[gid];
-                const firstItem = groupItems[0];
-                const limit = firstItem['선택군_선택수'] || '1';
-                const sep = document.createElement('div'); 
-                sep.className = 'group-separator'; 
+                const groupItems = groups[gid], firstItem = groupItems[0], limit = firstItem['선택군_선택수'] || '1';
+                const sep = document.createElement('div'); sep.className = 'group-separator'; 
                 sep.innerHTML = `<span>${gid}</span> ${firstItem['선택군_선택수'] ? `<span style="color:#ef4444">${limit}개 선택</span>` : ''}`;
-                content.appendChild(sep);
-                groupItems.forEach(r => content.appendChild(createSimItem(r, false, sem, firstItem['선택군_코드'] ? gid : null)));
+                content.appendChild(sep); groupItems.forEach(r => content.appendChild(createSimItem(r, false, sem, firstItem['선택군_코드'] ? gid : null)));
             });
         });
-        updateSummary();
-        setTimeout(() => {
-            drawPaths();
-            updateScrollMasks();
-        }, 200);
+        updateSummary(); setTimeout(() => { drawPaths(); updateScrollMasks(); }, 200);
     }
 
     function updateScrollMasks() {
         document.querySelectorAll('.semester-content').forEach(content => {
-            const panel = content.closest('.semester-panel');
-            const isBottom = content.scrollHeight - content.scrollTop <= content.clientHeight + 10;
+            const panel = content.closest('.semester-panel'), isBottom = content.scrollHeight - content.scrollTop <= content.clientHeight + 10;
             panel.classList.toggle('scrolled-to-bottom', isBottom);
         });
     }
 
     function createSimItem(row, isMandatory, sem, groupId = null) {
-        const item = document.createElement('div');
-        const rowId = `${sem}_${row['과목명']}`;
-        const cat = row['교과군'];
-        item.className = `course-item ${isMandatory ? 'mandatory' : 'choice'}`;
-        item.dataset.cat = cat; 
-        item.dataset.sem = sem;
+        const item = document.createElement('div'), courseName = row['과목명'], rowId = `${sem}_${courseName}`, cat = row['교과군'], credits = row[`${sem}_학점`], type = row['과목유형'] || '일반';
+        item.className = `course-item ${isMandatory ? 'mandatory' : 'choice'}`; item.dataset.cat = cat; item.dataset.sem = sem;
         if (groupId) item.dataset.group = `${sem}_${groupId}`;
         item.id = `item_${rowId.replace(/\s/g, '_')}`;
+        item.innerHTML = `<div class="item-row"><span class="material-icons-round check-box">${isMandatory ? 'check_box' : 'check_box_outline_blank'}</span><span class="course-name">${courseName}</span></div>
+                          <div class="badges-row"><span class="tag" style="background-color:${getCategoryColor(cat)}">${cat}</span><span class="tag" style="background-color:#64748b; font-size:0.55rem;">${type}</span></div>`;
 
-        item.innerHTML = `
-            <div class="item-row">
-                <span class="material-icons-round check-box">${isMandatory ? 'check_box' : 'check_box_outline_blank'}</span>
-                <span class="course-name">${row['과목명']}</span>
-            </div>
-            <div class="badges-row">
-                <span class="tag" style="background-color:${getCategoryColor(cat)}">${cat}</span>
-                <span class="tag" style="background-color:#64748b; font-size:0.55rem;">${row['과목유형'] || ''}</span>
-            </div>`;
-
-        item.onmouseover = () => {
-            const currentGroup = item.dataset.group;
-            const currentCat = item.dataset.cat;
-            const color = getCategoryColor(currentCat);
+        item.onmouseover = (e) => {
+            const currentGroup = item.dataset.group, currentCat = item.dataset.cat, color = getCategoryColor(currentCat);
             document.querySelectorAll('.course-item').forEach(el => {
                 if (currentGroup && el.dataset.group === currentGroup) el.classList.add('group-hover');
-                if (currentCat && el.dataset.cat === currentCat) {
-                    el.classList.add('cat-hover');
-                    el.style.backgroundColor = `color-mix(in srgb, ${color}, white 90%)`;
-                }
+                if (currentCat && el.dataset.cat === currentCat) { el.classList.add('cat-hover'); el.style.backgroundColor = `color-mix(in srgb, ${color}, white 90%)`; }
             });
+            const tooltip = document.getElementById('courseTooltip'), meta = courseMeta[courseName] || { "설명": "2022 개정 교육과정 정보를 불러올 수 없습니다.", "성적산출방식": "정보 없음" };
+            tooltip.innerHTML = `<div class="tooltip-title">${courseName}</div>
+                                 <div class="tooltip-row"><span class="tooltip-label">학점</span><span class="tooltip-value">${credits}학점</span></div>
+                                 <div class="tooltip-row"><span class="tooltip-label">과목유형</span><span class="tooltip-value">${type}</span></div>
+                                 <div class="tooltip-row"><span class="tooltip-label">교과군</span><span class="tooltip-value">${cat}</span></div>
+                                 <div class="tooltip-row"><span class="tooltip-label">성적산출</span><span class="tooltip-value">${meta.성적산출방식}</span></div>
+                                 <div class="tooltip-desc">${meta.설명}</div>`;
+            tooltip.style.display = 'flex'; updateTooltipPos(e);
         };
+        item.onmousemove = (e) => updateTooltipPos(e);
         item.onmouseout = () => {
-            document.querySelectorAll('.course-item').forEach(el => {
-                el.classList.remove('group-hover', 'cat-hover');
-                el.style.backgroundColor = '';
-            });
+            document.querySelectorAll('.course-item').forEach(el => { el.classList.remove('group-hover', 'cat-hover'); el.style.backgroundColor = ''; });
+            document.getElementById('courseTooltip').style.display = 'none';
         };
-
         if (!isMandatory) item.onclick = () => toggleSelection(item, row, sem, groupId);
         return item;
+    }
+
+    function updateTooltipPos(e) {
+        const tooltip = document.getElementById('courseTooltip'); let x = e.clientX + 20, y = e.clientY + 20;
+        if (x + 300 > window.innerWidth) x = e.clientX - 300; if (y + 250 > window.innerHeight) y = e.clientY - 250;
+        tooltip.style.left = `${x}px`; tooltip.style.top = `${y}px`;
     }
 
     function toggleSelection(el, row, sem, groupId) {
         const rowId = `${sem}_${row['과목명']}`;
         if (selectedCourses.has(rowId)) {
-            selectedCourses.delete(rowId);
-            el.classList.remove('selected');
-            el.querySelector('.check-box').innerText = 'check_box_outline_blank';
+            selectedCourses.delete(rowId); el.classList.remove('selected'); el.querySelector('.check-box').innerText = 'check_box_outline_blank';
         } else {
             const limit = parseInt(row['선택군_선택수'] || '1');
             const selected = Array.from(selectedCourses).filter(id => {
-                const [s, n] = id.split("_");
-                const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
+                const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
                 return s === sem && r && r['선택군_코드'] === groupId;
             }).length;
             if (selected >= limit && limit === 1 && groupId) {
                 Array.from(selectedCourses).forEach(id => {
                     if (id.startsWith(sem)) {
-                        const [s, n] = id.split("_");
-                        const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
+                        const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
                         if (r && r['선택군_코드'] === groupId) {
-                            selectedCourses.delete(id);
-                            const other = document.getElementById(`item_${id.replace(/\s/g, '_')}`);
+                            selectedCourses.delete(id); const other = document.getElementById(`item_${id.replace(/\s/g, '_')}`);
                             if (other) { other.classList.remove('selected'); other.querySelector('.check-box').innerText = 'check_box_outline_blank'; }
                         }
                     }
                 });
             } else if (selected >= limit && groupId) { alert(`최대 ${limit}개까지 선택 가능합니다.`); return; }
-            selectedCourses.add(rowId);
-            el.classList.add('selected');
-            el.querySelector('.check-box').innerText = 'check_box';
+            selectedCourses.add(rowId); el.classList.add('selected'); el.querySelector('.check-box').innerText = 'check_box';
         }
-        updateSummary();
-        drawPaths();
+        updateSummary(); drawPaths();
     }
 
     function updateSummary() {
         let total = 0, mand = 0;
-        rawData.forEach(r => {
-            if (r['학교지정'] === 'True') semesters.forEach(s => { const cr = parseInt(r[`${s}_학점`] || '0'); if (cr > 0) { total += cr; mand += cr; } });
-        });
-        selectedCourses.forEach(id => {
-            const [s, n] = id.split("_");
-            const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]);
-            if (r) total += parseInt(r[`${s}_학점`] || '0');
-        });
+        rawData.forEach(r => { if (r['학교지정'] === 'True') semesters.forEach(s => { const cr = parseInt(r[`${s}_학점`] || '0'); if (cr > 0) { total += cr; mand += cr; } }); });
+        selectedCourses.forEach(id => { const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]); if (r) total += parseInt(r[`${s}_학점`] || '0'); });
         document.getElementById('totalSelected').innerText = selectedCourses.size;
         document.getElementById('totalMandatoryCredits').innerText = mand;
         document.getElementById('totalCredits').innerText = total;
@@ -485,59 +536,30 @@
 
     function drawPaths(e) {
         if (e && e.target) updateScrollMasks();
-
-        const svg = document.getElementById('svgOverlay');
-        svg.innerHTML = '';
-        const svgRect = svg.getBoundingClientRect();
-        
+        const svg = document.getElementById('svgOverlay'); svg.innerHTML = ''; const svgRect = svg.getBoundingClientRect();
         const catGroups = {};
         document.querySelectorAll('.course-item').forEach(el => {
-            const cat = el.dataset.cat;
-            if (!catGroups[cat]) catGroups[cat] = {};
-            
-            const sem = el.dataset.sem;
-            if (!catGroups[cat][sem]) catGroups[cat][sem] = [];
+            const cat = el.dataset.cat; if (!catGroups[cat]) catGroups[cat] = {};
+            const sem = el.dataset.sem; if (!catGroups[cat][sem]) catGroups[cat][sem] = [];
             catGroups[cat][sem].push(el);
         });
-
         Object.keys(catGroups).forEach(cat => {
-            const semData = catGroups[cat];
-            const sortedSems = Object.keys(semData).sort((a, b) => semesters.indexOf(a) - semesters.indexOf(b));
-            
+            const semData = catGroups[cat], sortedSems = Object.keys(semData).sort((a, b) => semesters.indexOf(a) - semesters.indexOf(b));
             for (let i = 0; i < sortedSems.length - 1; i++) {
-                const currentSemItems = semData[sortedSems[i]];
-                const nextSemItems = semData[sortedSems[i+1]];
-                
+                const currentSemItems = semData[sortedSems[i]], nextSemItems = semData[sortedSems[i+1]];
                 currentSemItems.forEach(from => {
                     nextSemItems.forEach(to => {
-                        // 화살표 로직 수정: 둘 다 (선택됨 OR 필수) 일 때만 화살표를 진하게 표시
-                        // 선택되지 않은 과목끼리의 연결은 그리지 않음
-                        const fromActive = from.classList.contains('selected') || from.classList.contains('mandatory');
-                        const toActive = to.classList.contains('selected') || to.classList.contains('mandatory');
-                        
+                        const fromActive = from.classList.contains('selected') || from.classList.contains('mandatory'), toActive = to.classList.contains('selected') || to.classList.contains('mandatory');
                         if (!fromActive || !toActive) return;
-
-                        const isSelectedPath = from.classList.contains('selected') && to.classList.contains('selected');
-
-                        const fromRect = from.getBoundingClientRect(), toRect = to.getBoundingClientRect();
+                        const isSelectedPath = from.classList.contains('selected') && to.classList.contains('selected'), fromRect = from.getBoundingClientRect(), toRect = to.getBoundingClientRect();
                         const fromParent = from.closest('.semester-content').getBoundingClientRect(), toParent = to.closest('.semester-content').getBoundingClientRect();
-                        
                         const isVis = fromRect.bottom > fromParent.top && fromRect.top < fromParent.bottom && toRect.bottom > toParent.top && toRect.top < toParent.bottom;
                         if (!isVis) return;
-
-                        const x1 = fromRect.right - svgRect.left, y1 = (fromRect.top + fromRect.bottom)/2 - svgRect.top;
-                        const x2 = toRect.left - svgRect.left, y2 = (toRect.top + toRect.bottom)/2 - svgRect.top;
-
-                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                        const cp = x1 + (x2 - x1)/2;
-                        path.setAttribute("d", `M ${x1} ${y1} C ${cp} ${y1}, ${cp} ${y2}, ${x2} ${y2}`);
-                        path.setAttribute("class", "path-arrow");
-                        path.dataset.cat = cat;
-                        path.style.stroke = getCategoryColor(cat);
-                        
-                        if (isSelectedPath) path.classList.add('selected-path');
-                        else path.classList.add('active'); // 필수 포함 경로는 active
-                        
+                        const x1 = fromRect.right - svgRect.left, y1 = (fromRect.top + fromRect.bottom)/2 - svgRect.top, x2 = toRect.left - svgRect.left, y2 = (toRect.top + toRect.bottom)/2 - svgRect.top;
+                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path"), cp = x1 + (x2 - x1)/2;
+                        path.setAttribute("d", `M ${x1} ${y1} C ${cp} ${y1}, ${cp} ${y2}, ${x2} ${y2}`); path.setAttribute("class", "path-arrow");
+                        path.dataset.cat = cat; path.style.stroke = getCategoryColor(cat);
+                        if (isSelectedPath) path.classList.add('selected-path'); else path.classList.add('active');
                         svg.appendChild(path);
                     });
                 });
