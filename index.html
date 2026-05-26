@@ -94,7 +94,7 @@
             flex: 1;
             display: grid;
             grid-template-columns: repeat(6, 1fr);
-            gap: 40px; /* 간격 더 확대 */
+            gap: 40px;
             padding: 20px;
             box-sizing: border-box;
             background-color: #e2e8f0;
@@ -112,8 +112,24 @@
             height: 100%;
             position: relative;
             border: 1px solid #cbd5e1;
-            min-width: 150px; /* 너비 축소 */
+            min-width: 150px;
         }
+
+        /* 하단 페이드 마스크 */
+        .semester-panel::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, rgba(255, 255, 255, 0.95));
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 20;
+            opacity: 1;
+        }
+        .semester-panel.scrolled-to-bottom::after { opacity: 0; }
 
         .semester-header {
             padding: 6px;
@@ -121,6 +137,7 @@
             font-size: 0.75rem;
             color: white;
             text-align: center;
+            z-index: 30;
         }
 
         .sem-header-1 { background-color: var(--semester-1-color); }
@@ -129,11 +146,14 @@
         .semester-content {
             flex: 1;
             overflow-y: auto;
-            padding: 8px;
+            padding: 8px 8px 40px 8px;
             scrollbar-width: thin;
+            z-index: 10;
         }
 
-        /* Course Item Styling */
+        .semester-content::-webkit-scrollbar { width: 4px; }
+        .semester-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
         .course-item {
             padding: 4px 6px;
             margin-bottom: 6px;
@@ -144,27 +164,13 @@
             flex-direction: column;
             gap: 2px;
             font-size: 0.7rem;
-            transition: opacity 0.2s, transform 0.2s, filter 0.2s;
             background-color: white;
             position: relative;
             z-index: 10;
+            transition: background-color 0.2s;
         }
 
         .course-item.mandatory { cursor: default; background-color: #f8fafc; }
-
-        /* Dimming Effect */
-        .dimmed {
-            opacity: 0.15 !important;
-            filter: grayscale(1) !important;
-            pointer-events: none;
-        }
-
-        .cat-highlight {
-            z-index: 50 !important;
-            border-color: var(--md-sys-color-primary) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-            transform: scale(1.03);
-        }
 
         .course-item.selected {
             background-color: #f0f9ff !important;
@@ -179,8 +185,7 @@
 
         .badges-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
         .tag { padding: 1px 4px; border-radius: 4px; font-size: 0.6rem; font-weight: 700; color: white; }
-        .type-tag { background-color: #64748b; }
-
+        
         .group-separator {
             margin: 8px 0 4px;
             padding: 2px 6px;
@@ -193,7 +198,6 @@
             justify-content: space-between;
         }
 
-        /* SVG Overlay - ON TOP */
         #svgOverlay {
             position: absolute;
             top: 0;
@@ -201,21 +205,19 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: 1000; /* Ensure it's above panels */
+            z-index: 1000;
         }
 
         .path-arrow {
-            stroke-width: 1.5; /* 기본 두께 축소 */
+            stroke-width: 1.5;
             fill: none;
             transition: opacity 0.3s, stroke-width 0.3s;
-            opacity: 0.03; /* 기본 투명도 더 낮게 */
+            opacity: 0.03;
         }
 
-        .path-arrow.active { opacity: 0.4; stroke-width: 2.5; } /* 활성화 시에도 너무 튀지 않게 */
-        .path-arrow.selected-path { opacity: 0.8; stroke-width: 4; } /* 직접 선택한 경로는 강조 */
-        .path-arrow.cat-focused { opacity: 1; stroke-width: 6; }
+        .path-arrow.active { opacity: 0.3; stroke-width: 2; }
+        .path-arrow.selected-path { opacity: 0.8; stroke-width: 4; }
 
-        /* Summary Bar */
         .summary-bar {
             background: white;
             border-top: 1px solid #e2e8f0;
@@ -231,8 +233,6 @@
         .stat-val { font-weight: 700; color: var(--md-sys-color-primary); }
 
         .hidden { display: none !important; }
-        .semester-content::-webkit-scrollbar { width: 4px; }
-        .semester-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
     </style>
 </head>
 <body>
@@ -297,7 +297,7 @@
                 }
             });
         } catch (e) {
-            document.getElementById('tab-simulator').innerHTML = `<div style="grid-column: span 6; padding: 100px; text-align: center;">데이터 로딩 실패. http://localhost:8000으로 접속하세요.</div>`;
+            document.getElementById('tab-simulator').innerHTML = `<div style="grid-column: span 6; padding: 100px; text-align: center;">데이터 로딩 실패.</div>`;
         }
     }
 
@@ -316,7 +316,7 @@
             col.className = 'semester-panel';
             const [grade, term] = sem.split("-");
             col.innerHTML = `<div class="semester-header ${term === '1' ? 'sem-header-1' : 'sem-header-2'}">${grade}학년 ${term}학기</div>
-                             <div class="semester-content" id="content-${sem}" onscroll="drawPaths()"></div>`;
+                             <div class="semester-content" id="content-${sem}" onscroll="drawPaths(event)"></div>`;
             container.appendChild(col);
             const content = col.querySelector('.semester-content');
             const semData = rawData.filter(r => r[`${sem}_학점`] && r[`${sem}_학점`] !== '0');
@@ -339,7 +339,18 @@
             });
         });
         updateSummary();
-        setTimeout(drawPaths, 200);
+        setTimeout(() => {
+            drawPaths();
+            updateScrollMasks();
+        }, 200);
+    }
+
+    function updateScrollMasks() {
+        document.querySelectorAll('.semester-content').forEach(content => {
+            const panel = content.closest('.semester-panel');
+            const isBottom = content.scrollHeight - content.scrollTop <= content.clientHeight + 10;
+            panel.classList.toggle('scrolled-to-bottom', isBottom);
+        });
     }
 
     function createSimItem(row, isMandatory, sem, groupId = null) {
@@ -357,20 +368,8 @@
             </div>
             <div class="badges-row">
                 <span class="tag" style="background-color:${getCategoryColor(cat)}">${cat}</span>
-                <span class="tag type-tag">${row['과목유형'] || '일반'}</span>
             </div>`;
 
-        item.onmouseover = () => {
-            document.querySelectorAll('.course-item').forEach(el => {
-                if (el.dataset.cat === cat) el.classList.add('cat-highlight');
-                else el.classList.add('dimmed');
-            });
-            highlightPaths(cat);
-        };
-        item.onmouseout = () => {
-            document.querySelectorAll('.course-item').forEach(el => el.classList.remove('cat-highlight', 'dimmed'));
-            resetPaths();
-        };
         if (!isMandatory) item.onclick = () => toggleSelection(item, row, sem, groupId);
         return item;
     }
@@ -425,15 +424,7 @@
     }
 
     function drawPaths(e) {
-        // 스크롤 이벤트에서 호출된 경우 해당 패널의 마스크 처리
-        if (e && e.target) {
-            const content = e.target;
-            const panel = content.closest('.semester-panel');
-            if (panel) {
-                const isBottom = content.scrollHeight - content.scrollTop <= content.clientHeight + 10;
-                panel.classList.toggle('scrolled-to-bottom', isBottom);
-            }
-        }
+        if (e && e.target) updateScrollMasks();
 
         const svg = document.getElementById('svgOverlay');
         svg.innerHTML = '';
@@ -448,15 +439,12 @@
 
         Object.keys(groups).forEach(cat => {
             const items = groups[cat].sort((a, b) => semesters.indexOf(a.dataset.sem) - semesters.indexOf(b.dataset.sem));
-            
             for (let i = 0; i < items.length - 1; i++) {
                 const from = items[i], to = items[i+1];
                 if (from.dataset.sem === to.dataset.sem) continue;
                 
-                // 둘 중 하나라도 활성화되어 있는지 확인
                 const isActive = from.classList.contains('selected') || from.classList.contains('mandatory') || 
                                  to.classList.contains('selected') || to.classList.contains('mandatory');
-                // 둘 다 선택된 과목인 경우 (사용자 로드맵 강조)
                 const isSelectedPath = from.classList.contains('selected') && to.classList.contains('selected');
 
                 const fromRect = from.getBoundingClientRect(), toRect = to.getBoundingClientRect();
@@ -480,18 +468,6 @@
                 
                 svg.appendChild(path);
             }
-        });
-    }
-
-    function highlightPaths(cat) {
-        document.querySelectorAll(`.path-arrow[data-cat="${cat}"]`).forEach(p => { 
-            p.classList.add('cat-focused'); 
-        });
-    }
-
-    function resetPaths() {
-        document.querySelectorAll('.path-arrow').forEach(p => {
-            p.classList.remove('cat-focused');
         });
     }
 
