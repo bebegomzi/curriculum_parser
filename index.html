@@ -896,8 +896,36 @@
         return {
             "세부교과": dbMeta["세부교과"] || displayCategory,
             "설명": dbMeta["설명"] || legacyMeta["설명"] || "2022 개정 교육과정 정보를 불러올 수 없습니다.",
-            "성적산출방식": dbMeta["성적산출방식"] || legacyMeta["성적산출방식"] || "정보 없음"
+            "성적산출방식": getGeneralHighSchoolGrading(row, dbMeta["성적산출방식"] || legacyMeta["성적산출방식"] || "정보 없음")
         };
+    }
+
+    function getGeneralHighSchoolGrading(row, fallback) {
+        const subject = row['과목명'] || '';
+        const cat = row['교과군'] || '';
+        const type = row['과목유형'] || '';
+        const note = row['비고_전문_고시외_표6'] || '';
+
+        if (note.includes('표6') || note.includes('전문')) {
+            return '석차등급(5등급)+성취도(5단계)';
+        }
+        if (note.includes('고시외')) {
+            return '성취도(5단계), 석차등급 확인 필요';
+        }
+        if (cat.includes('교양')) {
+            return 'P/F';
+        }
+        if (subject.includes('과학탐구실험')) {
+            return '성취도(3단계), 석차등급 미산출';
+        }
+        if (cat.includes('체육') || cat.includes('예술')) {
+            return '성취도(3단계), 석차등급 미산출';
+        }
+        if (type === '융합' && (cat.includes('사회') || cat.includes('과학'))) {
+            return '성취도(5단계), 석차등급 미산출';
+        }
+
+        return fallback;
     }
 
     async function init() {
