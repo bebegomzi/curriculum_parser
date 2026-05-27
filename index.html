@@ -20,7 +20,7 @@
             --semester-2-color: #2e6c00;
 
             /* Category Colors */
-            --cat-국어: #ef4444;
+            --cat-국어: #f472b6;
             --cat-수학: #f59e0b;
             --cat-영어: #10b981;
             --cat-사회: #3b82f6;
@@ -423,6 +423,8 @@
     let rawData = [];
     let selectedCourses = new Set();
     const semesters = ["1-1", "1-2", "2-1", "2-2", "3-1", "3-2"];
+    let creativeActivityCredits = 18;
+    const graduationCredits = 192;
 
     const courseMeta = {
   "경제": {
@@ -891,11 +893,31 @@
             const response = await fetch("bangok_2026_curriculum_courses_llm.csv");
             if (!response.ok) throw new Error();
             const text = await response.text();
+            await loadSummaryCredits();
             Papa.parse(text, {
                 header: true, skipEmptyLines: true,
                 complete: function(results) { rawData = results.data; renderSimulator(); window.addEventListener('resize', () => drawPaths()); }
             });
         } catch (e) { document.getElementById('tab-simulator').innerHTML = `<div style="grid-column: span 6; padding: 100px; text-align: center;">데이터 로딩 실패.</div>`; }
+    }
+
+    async function loadSummaryCredits() {
+        try {
+            const response = await fetch("bangok_2026_curriculum_summary_llm.csv");
+            if (!response.ok) return;
+            const text = await response.text();
+            Papa.parse(text, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const creativeRow = results.data.find(row => (row['항목'] || '').includes('창의적 체험활동 이수 학점 소계'));
+                    const parsed = parseInt(creativeRow?.['교과군별이수학점'] || '0');
+                    if (parsed > 0) creativeActivityCredits = parsed;
+                }
+            });
+        } catch (e) {
+            creativeActivityCredits = 18;
+        }
     }
 
     function switchTab(tab) {
@@ -1046,9 +1068,10 @@
         let total = 0, mand = 0;
         rawData.forEach(r => { if (r['학교지정'] === 'True') semesters.forEach(s => { const cr = parseInt(r[`${s}_학점`] || '0'); if (cr > 0) { total += cr; mand += cr; } }); });
         selectedCourses.forEach(id => { const [s, n] = id.split("_"); const r = rawData.find(d => d['과목명'] === n && d[`${s}_학점`]); if (r) total += parseInt(r[`${s}_학점`] || '0'); });
+        total += creativeActivityCredits;
         document.getElementById('totalSelected').innerText = selectedCourses.size;
-        document.getElementById('totalMandatoryCredits').innerText = mand;
-        document.getElementById('totalCredits').innerText = total;
+        document.getElementById('totalMandatoryCredits').innerText = `${mand + creativeActivityCredits}/${graduationCredits}`;
+        document.getElementById('totalCredits').innerText = `${total}/${graduationCredits}`;
     }
 
     function semesterTitle(sem) {
