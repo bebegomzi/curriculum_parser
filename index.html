@@ -419,6 +419,7 @@
     <div>선택 과목: <span id="totalSelected" class="stat-val">0</span>개 | 필수 학점: <span id="totalMandatoryCredits" class="stat-val">0</span></div>
 </div>
 
+<script src="course_metadata.js"></script>
 <script>
     let rawData = [];
     let selectedCourses = new Set();
@@ -888,6 +889,17 @@
         return code ? `${code}__${rowRange}` : '';
     }
 
+    function getCourseMeta(row, displayCategory) {
+        const courseName = row['과목명'] || '';
+        const legacyMeta = courseMeta[courseName] || {};
+        const dbMeta = window.courseMetadataDb?.[courseName] || {};
+        return {
+            "세부교과": dbMeta["세부교과"] || displayCategory,
+            "설명": dbMeta["설명"] || legacyMeta["설명"] || "2022 개정 교육과정 정보를 불러올 수 없습니다.",
+            "성적산출방식": dbMeta["성적산출방식"] || legacyMeta["성적산출방식"] || "정보 없음"
+        };
+    }
+
     async function init() {
         try {
             const response = await fetch("bangok_2026_curriculum_courses_llm.csv");
@@ -981,12 +993,13 @@
                 if (currentGroup && el.dataset.group === currentGroup) el.classList.add('group-hover');
                 if (currentCat && el.dataset.cat === currentCat) { el.classList.add('cat-hover'); el.style.backgroundColor = `color-mix(in srgb, ${color}, white 90%)`; }
             });
-            const tooltip = document.getElementById('courseTooltip'), meta = courseMeta[courseName] || { "설명": "2022 개정 교육과정 정보를 불러올 수 없습니다.", "성적산출방식": "정보 없음" };
+            const tooltip = document.getElementById('courseTooltip'), meta = getCourseMeta(row, cat);
             tooltip.innerHTML = `<div class="tooltip-title">${courseName}</div>
                                  <div class="tooltip-row"><span class="tooltip-label">학점</span><span class="tooltip-value">${credits}학점</span></div>
                                  <div class="tooltip-row"><span class="tooltip-label">과목유형</span><span class="tooltip-value">${type}</span></div>
                                  ${extraInfo ? `<div class="tooltip-row"><span class="tooltip-label">추가정보</span><span class="tooltip-value">${extraInfo}</span></div>` : ''}
                                  <div class="tooltip-row"><span class="tooltip-label">교과군</span><span class="tooltip-value">${originalCat}${originalCat !== cat ? ` / ${cat}` : ''}</span></div>
+                                 <div class="tooltip-row"><span class="tooltip-label">세부교과</span><span class="tooltip-value">${meta.세부교과}</span></div>
                                  <div class="tooltip-row"><span class="tooltip-label">성적산출</span><span class="tooltip-value">${meta.성적산출방식}</span></div>
                                  <div class="tooltip-desc">${meta.설명}</div>`;
             tooltip.style.display = 'flex'; updateTooltipPos(e);
