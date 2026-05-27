@@ -166,10 +166,27 @@
             color: white;
             text-align: center;
             z-index: 30;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
         }
 
         .sem-header-1 { background-color: var(--semester-1-color); }
         .sem-header-2 { background-color: var(--semester-2-color); }
+        .semester-header.sem-complete {
+            background-color: #15803d;
+            box-shadow: inset 0 -3px 0 #bbf7d0;
+        }
+        .semester-complete-badge {
+            display: none;
+            padding: 1px 5px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.22);
+            font-size: 0.62rem;
+            font-weight: 700;
+        }
+        .semester-header.sem-complete .semester-complete-badge { display: inline-flex; }
 
         .semester-content {
             flex: 1;
@@ -893,7 +910,7 @@
         semesters.forEach(sem => {
             const col = document.createElement('div'); col.className = 'semester-panel';
             const [grade, term] = sem.split("-");
-            col.innerHTML = `<div class="semester-header ${term === '1' ? 'sem-header-1' : 'sem-header-2'}">${grade}학년 ${term}학기</div>
+            col.innerHTML = `<div class="semester-header ${term === '1' ? 'sem-header-1' : 'sem-header-2'}" id="header-${sem}"><span>${grade}학년 ${term}학기</span><span class="semester-complete-badge">완료</span></div>
                              <div class="semester-content" id="content-${sem}" onscroll="drawPaths(event)"></div>`;
             container.appendChild(col);
             const content = col.querySelector('.semester-content');
@@ -995,18 +1012,33 @@
 
     function updateGroupCompletion() {
         document.querySelectorAll('.course-item.group-complete').forEach(item => item.classList.remove('group-complete'));
+        const semesterState = {};
+        semesters.forEach(sem => { semesterState[sem] = { total: 0, complete: 0 }; });
 
         document.querySelectorAll('.group-separator[data-group]').forEach(separator => {
             const groupKey = separator.dataset.group;
+            const sem = groupKey.split("_")[0];
             const limit = parseInt(separator.dataset.limit || '1');
             const groupItems = Array.from(document.querySelectorAll(`.course-item[data-group="${CSS.escape(groupKey)}"]`));
             const selectedCount = groupItems.filter(item => item.classList.contains('selected')).length;
             const complete = selectedCount >= limit;
             const status = separator.querySelector('.group-status');
 
+            if (semesterState[sem]) {
+                semesterState[sem].total += 1;
+                if (complete) semesterState[sem].complete += 1;
+            }
+
             separator.classList.toggle('group-complete', complete);
             if (status) status.textContent = complete ? '선택 완료' : `${selectedCount}/${limit} 선택`;
             if (complete) groupItems.forEach(item => item.classList.add('group-complete'));
+        });
+
+        semesters.forEach(sem => {
+            const header = document.getElementById(`header-${sem}`);
+            const state = semesterState[sem];
+            const complete = state.total > 0 && state.total === state.complete;
+            if (header) header.classList.toggle('sem-complete', complete);
         });
     }
 
