@@ -176,9 +176,11 @@ def extract_selection_meta(raw: str) -> Tuple[str, str]:
 def main():
     parser = argparse.ArgumentParser(description="공주여고 HWPX 교육과정 편성표를 LLM용 CSV로 변환합니다.")
     parser.add_argument("input", type=Path, help="입력 HWPX 파일 경로")
-    parser.add_argument("--outdir", type=Path, default=Path("."), help="출력 폴더. 기본값: 현재 폴더")
+    parser.add_argument("--outdir", type=Path, default=None, help="출력 폴더 (기본값: 입력 파일과 동일한 폴더)")
     parser.add_argument("--prefix", default="gongju_2026_curriculum", help="출력 파일명 prefix. 기본값: gongju_2026_curriculum")
     args = parser.parse_args()
+
+    outdir = args.outdir if args.outdir else args.input.parent
 
     print(f"Loading HWPX: {args.input}")
     z = zipfile.ZipFile(args.input)
@@ -374,11 +376,11 @@ def main():
     selection_groups = build_selection_groups(course_rows)
 
     # 5. CSV 작성
-    args.outdir.mkdir(parents=True, exist_ok=True)
-    courses_path = args.outdir / f"{args.prefix}_courses_llm.csv"
-    groups_path = args.outdir / f"{args.prefix}_selection_groups_llm.csv"
-    summary_path = args.outdir / f"{args.prefix}_summary_llm.csv"
-    readme_path = args.outdir / f"{args.prefix}_readme.md"
+    outdir.mkdir(parents=True, exist_ok=True)
+    courses_path = outdir / f"{args.prefix}_courses_llm.csv"
+    groups_path = outdir / f"{args.prefix}_selection_groups_llm.csv"
+    summary_path = outdir / f"{args.prefix}_summary_llm.csv"
+    readme_path = outdir / f"{args.prefix}_readme.md"
 
     write_csv(courses_path, COURSE_FIELDNAMES, course_rows)
     write_csv(groups_path, SELECTION_FIELDNAMES, selection_groups)

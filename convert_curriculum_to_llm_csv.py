@@ -714,11 +714,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="교육과정 편성표 xlsx를 LLM용 CSV로 변환합니다.")
     parser.add_argument("input", type=Path, help="입력 xlsx 파일 경로")
     parser.add_argument("--sheet", default=None, help="변환할 시트명 (기본값: 자동으로 탐색)")
-    parser.add_argument("--outdir", type=Path, default=Path("."), help="출력 폴더. 기본값: 현재 폴더")
+    parser.add_argument("--outdir", type=Path, default=None, help="출력 폴더 (기본값: 입력 파일과 동일한 폴더)")
     parser.add_argument("--prefix", default=None, help="출력 파일명 prefix (기본값: 학교명과 학년도를 기준으로 자동 감지)")
     args = parser.parse_args()
 
-    paths, sheet_name, prefix = convert(args.input, args.sheet, args.outdir, args.prefix)
+    outdir = args.outdir if args.outdir else args.input.parent
+    paths, sheet_name, prefix = convert(args.input, args.sheet, outdir, args.prefix)
     print(f"변환 완료 (시트: {sheet_name}, 접두사: {prefix})")
     for key, path in paths.items():
         print(f"- {key}: {path}")
