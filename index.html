@@ -93,6 +93,11 @@
             color: var(--md-sys-color-on-primary-container);
         }
 
+        .main-tab-btn.utility {
+            font-size: 0.78rem;
+            opacity: 0.75;
+        }
+
         .copy-selection-btn {
             display: inline-flex;
             align-items: center;
@@ -376,11 +381,331 @@
         .full-data-table .course-title { font-weight: 700; color: #0f172a; }
         .full-data-table .center { text-align: center; }
         .full-data-table .muted { color: #94a3b8; }
+
+        .admission-container {
+            flex: 1;
+            overflow: hidden;
+            padding: 14px 18px;
+            box-sizing: border-box;
+            background: #f1f3f6;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .admission-toolbar {
+            background: white;
+            border: 1px solid #dbe3ef;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
+        }
+
+        .admission-title-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .admission-title {
+            margin: 0;
+            font-size: 1rem;
+            color: #0f172a;
+        }
+
+        .admission-note {
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+
+        .admission-controls {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) minmax(180px, 1.2fr) minmax(220px, 1.4fr) auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .admission-control {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .admission-control label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .admission-input {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            color: #1e293b;
+            background: #ffffff;
+            outline: none;
+        }
+
+        .admission-input:focus {
+            border-color: var(--md-sys-color-primary);
+            box-shadow: 0 0 0 2px rgba(0, 97, 164, 0.12);
+        }
+
+        .admission-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border: none;
+            border-radius: 7px;
+            padding: 9px 12px;
+            background: #0ea5e9;
+            color: white;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .admission-button:hover { background: #0284c7; }
+        .admission-button .material-icons-round { font-size: 16px; }
+
+        .admission-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 220px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            z-index: 3500;
+            box-shadow: 0 8px 16px rgba(15, 23, 42, 0.14);
+        }
+
+        .admission-dropdown-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            font-size: 0.78rem;
+        }
+
+        .admission-dropdown-item:hover {
+            background: #f1f5f9;
+        }
+
+        .admission-selected-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+            min-height: 24px;
+            align-items: center;
+        }
+
+        .admission-chip {
+            border: 1px solid #bae6fd;
+            background: #e0f2fe;
+            color: #0369a1;
+            border-radius: 999px;
+            padding: 3px 8px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .admission-empty-hint {
+            color: #94a3b8;
+            font-size: 0.73rem;
+        }
+
+        .admission-count {
+            font-size: 0.78rem;
+            color: #475569;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .admission-table-wrapper {
+            flex: 1;
+            overflow: auto;
+            background: white;
+            border: 1px solid #dbe3ef;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
+        }
+
+        .admission-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.78rem;
+        }
+
+        .admission-table th,
+        .admission-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+            line-height: 1.5;
+        }
+
+        .admission-table th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #0f4c81;
+            color: white;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .admission-table tr:nth-child(even) td { background: #f8fafc; }
+        .admission-table tr:hover td { background: #eff6ff; }
+
+        .admission-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            margin-right: 4px;
+            border-radius: 4px;
+            font-size: 0.68rem;
+            font-weight: 800;
+        }
+
+        .admission-badge.core { background: #fef3c7; color: #b45309; }
+        .admission-badge.rec { background: #dbeafe; color: #1d4ed8; }
+
+        .admission-subject-token {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 5px;
+            padding: 0 4px;
+            margin: 0 1px;
+            background: #e0f2fe;
+            color: #075985;
+            font-weight: 800;
+            cursor: help;
+            box-shadow: inset 0 -1px 0 #38bdf8;
+        }
+
+        .admission-subject-token.is-selected {
+            background: #dcfce7;
+            color: #166534;
+            box-shadow: inset 0 -1px 0 #22c55e;
+        }
+
+        .admission-no-data {
+            text-align: center;
+            color: #94a3b8;
+            padding: 42px 12px !important;
+        }
+
+        .admission-popover {
+            position: fixed;
+            display: none;
+            z-index: 6000;
+            width: 320px;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            box-shadow: 0 16px 30px rgba(15, 23, 42, 0.18);
+            padding: 12px;
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+
+        .admission-popover-title {
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .admission-offering {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 7px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+
+        .admission-offering:last-child {
+            border-bottom: none;
+        }
+
+        .admission-offering-name {
+            font-weight: 800;
+            color: #1e293b;
+        }
+
+        .admission-offering-meta {
+            color: #64748b;
+            font-size: 0.72rem;
+        }
+
+        .admission-add-btn {
+            border: none;
+            border-radius: 6px;
+            padding: 6px 9px;
+            background: #f97316;
+            color: white;
+            font-size: 0.72rem;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .admission-add-btn:hover { background: #ea580c; }
+
+        .admission-add-btn.is-selected {
+            background: #16a34a;
+            cursor: default;
+        }
+
+        .admission-fixed-label {
+            border-radius: 6px;
+            padding: 5px 8px;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 0.72rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .admission-unavailable {
+            color: #ef4444;
+            font-weight: 700;
+        }
+
+        .course-item.admission-added {
+            outline: 3px solid #f97316;
+            outline-offset: 2px;
+            box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.18);
+        }
+
+        @media (max-width: 900px) {
+            .admission-controls {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
 
 <div id="courseTooltip"></div>
+<div id="admissionPopover" class="admission-popover"></div>
 
 <header>
     <div style="display:flex; align-items:center; gap:8px;">
@@ -403,7 +728,8 @@
 
 <div class="main-tabs">
     <button class="main-tab-btn active" onclick="switchTab('simulator')">시뮬레이션</button>
-    <button class="main-tab-btn" onclick="switchTab('full')">전체 데이터</button>
+    <button class="main-tab-btn" onclick="switchTab('admission')">대입 권장과목</button>
+    <button class="main-tab-btn utility" onclick="switchTab('full')">원자료</button>
 </div>
 
 <div id="simWrapper">
@@ -415,17 +741,70 @@
     <div id="fullViewContent"></div>
 </div>
 
+<div id="tab-admission" class="hidden admission-container">
+    <div class="admission-toolbar">
+        <div class="admission-title-row">
+            <h2 class="admission-title">2028학년도 대입 반영 및 권장과목 검색</h2>
+            <div class="admission-note">PART 02. 대학별 권장과목 기준 · 2025년 9월 기준</div>
+        </div>
+        <div class="admission-controls">
+            <div class="admission-control">
+                <label for="admissionUniInput">대학 필터</label>
+                <input class="admission-input" type="text" id="admissionUniInput" placeholder="대학명 입력 또는 선택" autocomplete="off">
+                <div id="admissionUniDropdown" class="admission-dropdown"></div>
+            </div>
+            <div class="admission-control">
+                <label for="admissionDeptSearch">학과/모집단위 검색</label>
+                <input class="admission-input" type="text" id="admissionDeptSearch" placeholder="예: 기계공학, 경영, 간호, 의예">
+            </div>
+            <div class="admission-control">
+                <label for="admissionSubjectSearch">과목 검색</label>
+                <input class="admission-input" type="text" id="admissionSubjectSearch" placeholder="예: 미적분Ⅱ, 생명과학, 물리학">
+            </div>
+            <button id="admissionLoadSelectedBtn" class="admission-button" type="button">
+                <span class="material-icons-round">playlist_add</span>
+                선택과목 검색
+            </button>
+        </div>
+        <div id="admissionSelectedChips" class="admission-selected-strip"></div>
+    </div>
+
+    <div id="admissionCountInfo" class="admission-count"></div>
+
+    <div class="admission-table-wrapper">
+        <table class="admission-table">
+            <thead>
+                <tr>
+                    <th style="width:12%">대학</th>
+                    <th style="width:26%">모집단위</th>
+                    <th style="width:30%">핵심과목</th>
+                    <th style="width:24%">권장과목</th>
+                    <th style="width:8%">비고</th>
+                </tr>
+            </thead>
+            <tbody id="admissionTableBody">
+                <tr><td class="admission-no-data" colspan="5">대입 권장과목 DB를 불러오는 중입니다.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <div class="summary-bar" id="summaryBar">
     <div>선택 과목: <span id="totalSelected" class="stat-val">0</span>개 | 필수 학점: <span id="totalMandatoryCredits" class="stat-val">0</span></div>
 </div>
 
 <script src="course_metadata.js"></script>
+<script src="admission_recommendations.js?v=20260528"></script>
 <script>
     let rawData = [];
     let selectedCourses = new Set();
     const semesters = ["1-1", "1-2", "2-1", "2-2", "3-1", "3-2"];
     let creativeActivityCredits = 18;
     const graduationCredits = 192;
+    let admissionInitialized = false;
+    let admissionSelectedUni = 'all';
+    let admissionCurrentFiltered = [];
+    let admissionHideTimer = null;
 
     const courseMeta = {
   "경제": {
@@ -936,7 +1315,7 @@
             await loadSummaryCredits();
             Papa.parse(text, {
                 header: true, skipEmptyLines: true,
-                complete: function(results) { rawData = results.data; renderSimulator(); window.addEventListener('resize', () => drawPaths()); }
+                complete: function(results) { rawData = results.data; renderSimulator(); initAdmissionSearch(); window.addEventListener('resize', () => drawPaths()); }
             });
         } catch (e) { document.getElementById('tab-simulator').innerHTML = `<div style="grid-column: span 6; padding: 100px; text-align: center;">데이터 로딩 실패.</div>`; }
     }
@@ -963,8 +1342,12 @@
     function switchTab(tab) {
         document.getElementById('simWrapper').classList.toggle('hidden', tab !== 'simulator');
         document.getElementById('tab-full').classList.toggle('hidden', tab !== 'full');
+        document.getElementById('tab-admission').classList.toggle('hidden', tab !== 'admission');
         document.querySelectorAll('.main-tab-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('onclick').includes(tab)));
-        if (tab === 'full') renderFullView(); else setTimeout(drawPaths, 100);
+        hideAdmissionPopover();
+        if (tab === 'full') renderFullView();
+        else if (tab === 'admission') initAdmissionSearch();
+        else setTimeout(drawPaths, 100);
     }
 
     function renderSimulator() {
@@ -1070,7 +1453,7 @@
             } else if (selected >= limit && groupId) { alert(`최대 ${limit}개까지 선택 가능합니다.`); return; }
             selectedCourses.add(rowId); el.classList.add('selected'); el.querySelector('.check-box').innerText = 'check_box';
         }
-        updateSummary(); updateGroupCompletion(); drawPaths();
+        updateSummary(); updateGroupCompletion(); drawPaths(); renderAdmissionSelectedChips(); renderAdmissionTable();
     }
 
     function updateGroupCompletion() {
@@ -1168,6 +1551,429 @@
         }
 
         setTimeout(() => { button.innerHTML = original; }, 1200);
+    }
+
+    const admissionAliasOverrides = [
+        { label: '미적분ⅠⅡ', courseNames: ['미적분Ⅰ', '미적분Ⅱ'] },
+        { label: '미적분 I II', courseNames: ['미적분Ⅰ', '미적분Ⅱ'] },
+        { label: '미적분Ⅰ,Ⅱ', courseNames: ['미적분Ⅰ', '미적분Ⅱ'] },
+        { label: '화학반응의 세계', courseNames: ['화학 반응의 세계'] },
+        { label: '생물과 유전', courseNames: ['생물의 유전'] },
+        { label: '영어I', courseNames: ['영어Ⅰ'] },
+        { label: '영어II', courseNames: ['영어Ⅱ'] }
+    ];
+
+    function initAdmissionSearch() {
+        const tableBody = document.getElementById('admissionTableBody');
+        if (!tableBody) return;
+
+        if (!window.admissionRecommendations) {
+            tableBody.innerHTML = '<tr><td class="admission-no-data" colspan="5">대입 권장과목 DB를 찾지 못했습니다.</td></tr>';
+            return;
+        }
+
+        if (!rawData.length) {
+            tableBody.innerHTML = '<tr><td class="admission-no-data" colspan="5">학교 교육과정 데이터를 불러오는 중입니다.</td></tr>';
+            return;
+        }
+
+        if (!admissionInitialized) {
+            const uniInput = document.getElementById('admissionUniInput');
+            const deptSearch = document.getElementById('admissionDeptSearch');
+            const subjectSearch = document.getElementById('admissionSubjectSearch');
+            const selectedChips = document.getElementById('admissionSelectedChips');
+            const popover = document.getElementById('admissionPopover');
+
+            uniInput.addEventListener('focus', () => buildAdmissionDropdown(uniInput.value));
+            uniInput.addEventListener('input', () => {
+                admissionSelectedUni = 'all';
+                buildAdmissionDropdown(uniInput.value);
+                renderAdmissionTable();
+            });
+            uniInput.addEventListener('blur', () => setTimeout(() => {
+                document.getElementById('admissionUniDropdown').style.display = 'none';
+            }, 150));
+
+            deptSearch.addEventListener('input', renderAdmissionTable);
+            subjectSearch.addEventListener('input', renderAdmissionTable);
+            document.getElementById('admissionLoadSelectedBtn').addEventListener('click', fillAdmissionSearchWithSelectedCourses);
+
+            selectedChips.addEventListener('click', (event) => {
+                const chip = event.target.closest('.admission-chip');
+                if (!chip) return;
+                subjectSearch.value = chip.dataset.subject || '';
+                renderAdmissionTable();
+            });
+
+            tableBody.addEventListener('mouseover', (event) => {
+                const token = event.target.closest('.admission-subject-token');
+                if (token) showAdmissionPopover(token);
+            });
+            tableBody.addEventListener('mouseout', (event) => {
+                if (event.target.closest('.admission-subject-token')) scheduleHideAdmissionPopover();
+            });
+            tableBody.addEventListener('focusin', (event) => {
+                const token = event.target.closest('.admission-subject-token');
+                if (token) showAdmissionPopover(token);
+            });
+            tableBody.addEventListener('focusout', scheduleHideAdmissionPopover);
+
+            popover.addEventListener('mouseenter', () => clearTimeout(admissionHideTimer));
+            popover.addEventListener('mouseleave', scheduleHideAdmissionPopover);
+            popover.addEventListener('click', (event) => {
+                const button = event.target.closest('.admission-add-btn');
+                if (!button || button.disabled) return;
+                addAdmissionCourseToSimulation(button.dataset.courseName, button.dataset.sem);
+            });
+
+            admissionInitialized = true;
+        }
+
+        renderAdmissionSelectedChips();
+        renderAdmissionTable();
+    }
+
+    function getAdmissionData() {
+        return window.admissionRecommendations || [];
+    }
+
+    function getAdmissionUniversities() {
+        return [...new Set(getAdmissionData().map(row => row.uni).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, 'ko'));
+    }
+
+    function buildAdmissionDropdown(filter) {
+        const dropdown = document.getElementById('admissionUniDropdown');
+        const query = (filter || '').toLowerCase();
+        const universities = getAdmissionUniversities();
+        const matched = query ? universities.filter(uni => uni.toLowerCase().includes(query)) : universities;
+
+        dropdown.innerHTML = '';
+        const allItem = document.createElement('div');
+        allItem.className = 'admission-dropdown-item';
+        allItem.textContent = '전체 대학';
+        allItem.addEventListener('mousedown', () => selectAdmissionUniversity('all', ''));
+        dropdown.appendChild(allItem);
+
+        matched.forEach(uni => {
+            const item = document.createElement('div');
+            item.className = 'admission-dropdown-item';
+            item.textContent = uni;
+            item.addEventListener('mousedown', () => selectAdmissionUniversity(uni, uni));
+            dropdown.appendChild(item);
+        });
+
+        dropdown.style.display = matched.length || !query ? 'block' : 'none';
+    }
+
+    function selectAdmissionUniversity(value, label) {
+        admissionSelectedUni = value;
+        document.getElementById('admissionUniInput').value = label;
+        document.getElementById('admissionUniDropdown').style.display = 'none';
+        renderAdmissionTable();
+    }
+
+    function fillAdmissionSearchWithSelectedCourses() {
+        const subjectInput = document.getElementById('admissionSubjectSearch');
+        const selectedNames = getSelectedChoiceCourseNames();
+
+        if (!selectedNames.length) {
+            subjectInput.value = '';
+            renderAdmissionSelectedChips('선택한 선택과목이 아직 없습니다.');
+            renderAdmissionTable();
+            return;
+        }
+
+        subjectInput.value = selectedNames.join(', ');
+        renderAdmissionTable();
+    }
+
+    function getSelectedChoiceCourseNames() {
+        return Array.from(new Set(Array.from(selectedCourses).map(id => id.split('_').slice(1).join('_'))))
+            .sort((a, b) => a.localeCompare(b, 'ko'));
+    }
+
+    function renderAdmissionSelectedChips(message = '') {
+        const container = document.getElementById('admissionSelectedChips');
+        if (!container) return;
+
+        const names = getSelectedChoiceCourseNames();
+        if (!names.length) {
+            container.innerHTML = `<span class="admission-empty-hint">${escapeHtml(message || '선택과목 없음')}</span>`;
+            return;
+        }
+
+        container.innerHTML = names.map(name => (
+            `<button type="button" class="admission-chip" data-subject="${escapeHtml(name)}">${escapeHtml(name)}</button>`
+        )).join('');
+    }
+
+    function parseAdmissionSubjectTerms(value) {
+        return String(value || '')
+            .split(/[,、]+/)
+            .map(term => term.trim())
+            .filter(Boolean);
+    }
+
+    function normalizeAdmissionText(value) {
+        return String(value || '')
+            .toLowerCase()
+            .replace(/\s+/g, '')
+            .replace(/Ⅰ/g, '1')
+            .replace(/Ⅱ/g, '2')
+            .replace(/Ⅲ/g, '3');
+    }
+
+    function admissionTextIncludes(text, term) {
+        const haystack = normalizeAdmissionText(text);
+        const needle = normalizeAdmissionText(term);
+        if (!needle) return true;
+        if (haystack.includes(needle)) return true;
+        if (needle === '미적분2' && haystack.includes('미적분12')) return true;
+        if (needle === '미적분1' && haystack.includes('미적분12')) return true;
+        return false;
+    }
+
+    function renderAdmissionTable() {
+        if (!admissionInitialized || !window.admissionRecommendations) return;
+
+        const uniInput = document.getElementById('admissionUniInput');
+        const deptSearch = document.getElementById('admissionDeptSearch');
+        const subjectSearch = document.getElementById('admissionSubjectSearch');
+        const countInfo = document.getElementById('admissionCountInfo');
+        if (!uniInput || !deptSearch || !subjectSearch || !countInfo) return;
+
+        const uniQuery = uniInput.value.toLowerCase().trim();
+        const deptQuery = deptSearch.value.toLowerCase().trim();
+        const subjectTerms = parseAdmissionSubjectTerms(subjectSearch.value);
+
+        admissionCurrentFiltered = getAdmissionData().filter(row => {
+            if (admissionSelectedUni !== 'all' && row.uni !== admissionSelectedUni) return false;
+            if (admissionSelectedUni === 'all' && uniQuery && !row.uni.toLowerCase().includes(uniQuery)) return false;
+            if (deptQuery && !row.dept.toLowerCase().includes(deptQuery)) return false;
+            if (subjectTerms.length) {
+                const subjectText = `${row.core || ''} ${row.rec || ''}`;
+                if (!subjectTerms.some(term => admissionTextIncludes(subjectText, term))) return false;
+            }
+            return true;
+        });
+
+        const selectedSummary = subjectTerms.length ? `과목 검색어: ${subjectTerms.join(', ')}` : '과목 검색어 없음';
+        countInfo.innerHTML = `<span>검색 결과: <strong>${admissionCurrentFiltered.length}</strong>건</span><span>${escapeHtml(selectedSummary)}</span>`;
+        renderAdmissionTableRows(admissionCurrentFiltered, deptSearch.value.trim(), subjectTerms);
+    }
+
+    function renderAdmissionTableRows(rows, deptKeyword, subjectTerms) {
+        const tableBody = document.getElementById('admissionTableBody');
+        if (!tableBody) return;
+
+        if (!rows.length) {
+            tableBody.innerHTML = '<tr><td class="admission-no-data" colspan="5">검색 결과가 없습니다.</td></tr>';
+            return;
+        }
+
+        tableBody.innerHTML = rows.map(row => {
+            const coreHtml = row.core && row.core !== '-'
+                ? `<span class="admission-badge core">핵</span>${formatAdmissionSubjectText(row.core, subjectTerms)}`
+                : escapeHtml(row.core || '');
+            const recHtml = row.rec && row.rec !== '-'
+                ? `<span class="admission-badge rec">권</span>${formatAdmissionSubjectText(row.rec, subjectTerms)}`
+                : escapeHtml(row.rec || '');
+
+            return `<tr>
+                <td><strong>${escapeHtml(row.uni)}</strong></td>
+                <td>${admissionHighlight(escapeHtml(row.dept), [deptKeyword])}</td>
+                <td>${coreHtml}</td>
+                <td>${recHtml}</td>
+                <td>${escapeHtml(row.note || '')}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function getAdmissionCourseAliases() {
+        const aliases = new Map();
+
+        rawData.forEach(row => {
+            const name = row['과목명'];
+            if (name) aliases.set(name, { label: name, courseNames: [name] });
+        });
+
+        admissionAliasOverrides.forEach(alias => {
+            aliases.set(alias.label, alias);
+        });
+
+        return Array.from(aliases.values()).sort((a, b) => b.label.length - a.label.length);
+    }
+
+    function formatAdmissionSubjectText(text, keywords = []) {
+        if (!text) return '';
+
+        const aliases = getAdmissionCourseAliases();
+        const matches = [];
+
+        aliases.forEach(alias => {
+            let start = 0;
+            while (start < text.length) {
+                const index = text.indexOf(alias.label, start);
+                if (index === -1) break;
+                matches.push({ start: index, end: index + alias.label.length, alias });
+                start = index + Math.max(1, alias.label.length);
+            }
+        });
+
+        matches.sort((a, b) => a.start - b.start || b.end - a.end);
+
+        const picked = [];
+        let coveredUntil = 0;
+        matches.forEach(match => {
+            if (match.start < coveredUntil) return;
+            picked.push(match);
+            coveredUntil = match.end;
+        });
+
+        if (!picked.length) return admissionHighlight(escapeHtml(text), keywords);
+
+        const parts = [];
+        let cursor = 0;
+        picked.forEach(match => {
+            if (cursor < match.start) {
+                parts.push(admissionHighlight(escapeHtml(text.slice(cursor, match.start)), keywords));
+            }
+
+            const label = text.slice(match.start, match.end);
+            const selected = match.alias.courseNames.some(name => isAdmissionCourseSelected(name));
+            parts.push(`<span class="admission-subject-token${selected ? ' is-selected' : ''}" tabindex="0" data-course-names="${escapeHtml(match.alias.courseNames.join('|'))}">${escapeHtml(label)}</span>`);
+            cursor = match.end;
+        });
+
+        if (cursor < text.length) {
+            parts.push(admissionHighlight(escapeHtml(text.slice(cursor)), keywords));
+        }
+
+        return parts.join('');
+    }
+
+    function admissionHighlight(escapedText, keywords = []) {
+        let result = escapedText || '';
+        keywords.filter(Boolean).forEach(keyword => {
+            const escaped = escapeRegExp(escapeHtml(keyword));
+            result = result.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+        });
+        return result;
+    }
+
+    function escapeRegExp(value) {
+        return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function isAdmissionCourseSelected(courseName) {
+        return Array.from(selectedCourses).some(id => id.split('_').slice(1).join('_') === courseName);
+    }
+
+    function getCourseOfferings(courseName) {
+        const offerings = [];
+        rawData.filter(row => row['과목명'] === courseName).forEach(row => {
+            semesters.forEach(sem => {
+                const credit = parseInt(row[`${sem}_학점`] || '0');
+                if (credit > 0) offerings.push({ row, sem, credit });
+            });
+        });
+        return offerings;
+    }
+
+    function showAdmissionPopover(token) {
+        clearTimeout(admissionHideTimer);
+
+        const popover = document.getElementById('admissionPopover');
+        const courseNames = (token.dataset.courseNames || '').split('|').filter(Boolean);
+        const label = token.textContent || '';
+
+        popover.innerHTML = `<div class="admission-popover-title">${escapeHtml(label)}</div>
+            ${courseNames.map(renderAdmissionOfferingBlock).join('')}`;
+        popover.style.display = 'block';
+
+        const rect = token.getBoundingClientRect();
+        const popRect = popover.getBoundingClientRect();
+        let left = rect.left;
+        let top = rect.bottom + 8;
+
+        if (left + popRect.width > window.innerWidth - 12) {
+            left = Math.max(12, window.innerWidth - popRect.width - 12);
+        }
+        if (top + popRect.height > window.innerHeight - 12) {
+            top = Math.max(12, rect.top - popRect.height - 8);
+        }
+
+        popover.style.left = `${left}px`;
+        popover.style.top = `${top}px`;
+    }
+
+    function renderAdmissionOfferingBlock(courseName) {
+        const offerings = getCourseOfferings(courseName);
+
+        if (!offerings.length) {
+            return `<div class="admission-offering">
+                <div>
+                    <div class="admission-offering-name">${escapeHtml(courseName)}</div>
+                    <div class="admission-unavailable">반곡고 교육과정에 개설되어 있지 않습니다.</div>
+                </div>
+            </div>`;
+        }
+
+        return offerings.map(({ row, sem, credit }) => {
+            const rowId = `${sem}_${courseName}`;
+            const selected = selectedCourses.has(rowId);
+            const mandatory = row['학교지정'] === 'True';
+            const groupText = mandatory ? '학교지정 필수' : (row['선택군_코드'] || '선택과목');
+            const action = mandatory
+                ? '<span class="admission-fixed-label">필수 이수</span>'
+                : `<button type="button" class="admission-add-btn${selected ? ' is-selected' : ''}" ${selected ? 'disabled' : ''} data-course-name="${escapeHtml(courseName)}" data-sem="${sem}">${selected ? '담김' : '담기'}</button>`;
+
+            return `<div class="admission-offering">
+                <div>
+                    <div class="admission-offering-name">${escapeHtml(courseName)}</div>
+                    <div class="admission-offering-meta">${semesterTitle(sem)} · ${credit}학점 · ${escapeHtml(groupText)}</div>
+                </div>
+                ${action}
+            </div>`;
+        }).join('');
+    }
+
+    function scheduleHideAdmissionPopover() {
+        clearTimeout(admissionHideTimer);
+        admissionHideTimer = setTimeout(hideAdmissionPopover, 160);
+    }
+
+    function hideAdmissionPopover() {
+        clearTimeout(admissionHideTimer);
+        const popover = document.getElementById('admissionPopover');
+        if (popover) popover.style.display = 'none';
+    }
+
+    function addAdmissionCourseToSimulation(courseName, sem) {
+        const row = rawData.find(item => item['과목명'] === courseName && parseInt(item[`${sem}_학점`] || '0') > 0);
+        const rowId = `${sem}_${courseName}`;
+        const item = document.getElementById(`item_${rowId.replace(/\s/g, '_')}`);
+
+        if (!row || !item) {
+            alert('시뮬레이션 화면에서 해당 과목을 찾지 못했습니다.');
+            return;
+        }
+
+        if (row['학교지정'] !== 'True' && !selectedCourses.has(rowId)) {
+            const groupId = item.dataset.group ? item.dataset.group.slice(`${sem}_`.length) : null;
+            toggleSelection(item, row, sem, groupId);
+        }
+
+        hideAdmissionPopover();
+        switchTab('simulator');
+        setTimeout(() => focusSimulationItem(item), 120);
+    }
+
+    function focusSimulationItem(item) {
+        item.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        item.classList.add('admission-added');
+        setTimeout(() => item.classList.remove('admission-added'), 1800);
     }
 
     function drawPaths(e) {
