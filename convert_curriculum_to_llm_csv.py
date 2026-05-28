@@ -272,33 +272,83 @@ def copy_ws_with_filled_merges(ws: Worksheet) -> Worksheet:
 
 def detect_curriculum_sheet(wb: load_workbook) -> str:
     """학업 교육과정 편성표의 특징적 헤더가 포함된 시트를 찾아 반환합니다."""
+    # Prioritize sheet names with keywords
+    priority_sheets = []
     for name in wb.sheetnames:
+        name_clean = name.lower()
+        score = 0
+        if "변경후" in name_clean:
+            score += 10
+        if "입학생" in name_clean:
+            score += 5
+        if "1학년" in name_clean:
+            score += 3
+        if score > 0:
+            priority_sheets.append((score, name))
+    
+    priority_sheets.sort(key=lambda x: x[0], reverse=True)
+    search_order = [name for _, name in priority_sheets] + [n for n in wb.sheetnames if n not in [s[1] for s in priority_sheets]]
+
+    for name in search_order:
         ws = wb[name]
-        if ws.max_row >= 8 and ws.max_column >= 19:
+        if ws.max_row >= 8 and ws.max_column >= 12:
             # 첫 15행을 뒤져서 헤더 행을 탐색해 봅니다
             for r in range(1, 16):
-                a = clean(ws.cell(r, 1).value)
-                b = clean(ws.cell(r, 2).value)
-                if "교과" in a and "과목명" in b:
+                row_vals = [clean(ws.cell(r, c).value) for c in range(1, min(ws.max_column + 1, 25))]
+                has_gyogwa = any("교과" in val for val in row_vals)
+                has_gwamok = any("과목" in val for val in row_vals)
+                if has_gyogwa and has_gwamok:
                     return name
     return wb.sheetnames[0]
 
 
 def find_header_start_row(ws: Worksheet) -> int:
-    """헤더 행('교과(군)'과 '과목명'이 나타나는 행)을 찾아 반환합니다."""
+    """헤더 행('교과(군)'과 '과목명/과목'이 나타나는 행)을 찾아 반환합니다."""
     for r in range(1, 21):
-        a = clean(ws.cell(r, 1).value)
-        b = clean(ws.cell(r, 2).value)
-        if "교과" in a and "과목명" in b:
+        row_vals = [clean(ws.cell(r, c).value) for c in range(1, min(ws.max_column + 1, 25))]
+        has_gyogwa = any("교과" in val for val in row_vals)
+        has_gwamok = any("과목" in val for val in row_vals)
+        if has_gyogwa and has_gwamok:
             return r
     return 5  # 기본 fallback
 
 
 def detect_columns(ws: Worksheet, header_start: int) -> Dict[str, int]:
     """3줄의 헤더 행 텍스트 조합을 스캔하여 각각의 데이터 열 인덱스를 동적으로 매핑합니다."""
+    global SEMESTER_COLS
     col_map = COL.copy()
-    col_headers = {}
     
+    # Check if Wongsang style by reading the first cell in header_start row
+    first_cell = clean(ws.cell(header_start, 1).value)
+    if first_cell == "구분":
+        # Wongsang layout is fixed!
+        col_map["구분"] = 1
+        col_map["교과군"] = 2
+        col_map["과목유형_단일열"] = 3
+        col_map["과목명"] = 4
+        col_map["기본학점"] = 5
+        col_map["편성학점"] = 6
+        col_map["1-1"] = 7
+        col_map["1-2"] = 8
+        col_map["2-1"] = 9
+        col_map["2-2"] = 10
+        col_map["3-1"] = 11
+        col_map["3-2"] = 12
+        col_map["편성학점합"] = 13
+        col_map["교과군별이수학점"] = 13  # fallback
+        
+        # Update SEMESTER_COLS
+        SEMESTER_COLS = {
+            "1-1": 7,
+            "1-2": 8,
+            "2-1": 9,
+            "2-2": 10,
+            "3-1": 11,
+            "3-2": 12,
+        }
+        return col_map
+
+    col_headers = {}
     for c in range(1, ws.max_column + 1):
         vals = []
         for r in range(header_start, header_start + 3):
@@ -309,10 +359,12 @@ def detect_columns(ws: Worksheet, header_start: int) -> Dict[str, int]:
 
     # 매핑 규칙 정의
     rules = {
+        "구분": lambda text: text.strip() == "구분",
         "교과군": lambda text: "교과" in text,
-        "과목명": lambda text: "과목명" in text,
+        "과목명": lambda text: "과목" in text and "유형" not in text and "코드" not in text,
         "학교지정": lambda text: "구분" in text and "지정" in text,
         "학년선택": lambda text: "구분" in text and "선택" in text,
+        "과목유형_단일열": lambda text: "과목" in text and "유형" in text,
         "공통": lambda text: "공통" in text and "과목유형" in text,
         "일반": lambda text: "일반" in text and "과목유형" in text,
         "진로": lambda text: "진로" in text and "과목유형" in text,
@@ -327,7 +379,8 @@ def detect_columns(ws: Worksheet, header_start: int) -> Dict[str, int]:
         "2-2": lambda text: ("2학년" in text and "2학기" in text) or "2-2" in text or "2학년2학기" in text or "2학년 2학기" in text,
         "3-1": lambda text: ("3학년" in text and "1학기" in text) or "3-1" in text or "3학년1학기" in text or "3학년 1학기" in text,
         "3-2": lambda text: ("3학년" in text and "2학기" in text) or "3-2" in text or "3학년2학기" in text or "3학년 2학기" in text,
-        "편성학점": lambda text: "편성" in text and "이수" not in text and "필수" not in text,
+        "편성학점": lambda text: ("편성" in text or "운영" in text) and "합" not in text and "이수" not in text and "필수" not in text,
+        "편성학점합": lambda text: "편성" in text and "합" in text,
         "교과군별이수학점": lambda text: "교과군별" in text or "교과군별이수" in text,
         "필수이수학점": lambda text: "필수" in text and "이수" in text,
         "과학중점": lambda text: "중점" in text and text.endswith("과학"),
@@ -338,14 +391,25 @@ def detect_columns(ws: Worksheet, header_start: int) -> Dict[str, int]:
     }
 
     # 스캔하여 규칙 매칭
+    detected = {}
     for key, rule in rules.items():
         for c, text in col_headers.items():
             if rule(text):
-                col_map[key] = c
+                detected[key] = c
                 break
 
+    # fallback for 교과군별이수학점
+    if "교과군별이수학점" not in detected and "편성학점합" in detected:
+        detected["교과군별이수학점"] = detected["편성학점합"]
+
+    col_map.update(detected)
+
+    # Clean up single-column layout if checkboxes are present
+    if any(k in detected for k in ["공통", "일반", "진로", "융합"]):
+        if "과목유형_단일열" in col_map:
+            del col_map["과목유형_단일열"]
+
     # 학기별 열 정보 업데이트
-    global SEMESTER_COLS
     SEMESTER_COLS = {
         "1-1": col_map.get("1-1", 13),
         "1-2": col_map.get("1-2", 14),
@@ -423,7 +487,7 @@ def find_summary_start_row(ws: Worksheet, data_start: int) -> int:
         a = clean(cell_val(ws, r, "교과군"))
         b = clean(cell_val(ws, r, "과목명"))
         joined = normalize_space(" ".join([a, b]))
-        if any(keyword in joined for keyword in ["창의적", "총 이수", "총계", "합계"]):
+        if any(keyword in joined for keyword in ["창의적", "총 이수", "총계", "합계", "학생 선택", "총 교과"]):
             return r
         # 과목명 없이 학기/편성 쪽 숫자만 나오기 시작하면 요약 영역으로 간주
         if r > data_start and not b:
@@ -437,6 +501,9 @@ def find_summary_start_row(ws: Worksheet, data_start: int) -> int:
 
 def course_type(ws: Worksheet, row: int) -> str:
     """공통/일반/진로/융합 중 주 과목유형을 반환합니다."""
+    col_single = COL.get("과목유형_단일열")
+    if col_single and col_single >= 1:
+        return clean(ws.cell(row, col_single).value)
     for name in ["공통", "일반", "진로", "융합"]:
         if true_marker(cell_val(ws, row, name)):
             return name
@@ -471,6 +538,63 @@ def parse_selection_meta(raw: str) -> Tuple[str, str, str]:
 def compact_selection_label(raw: str) -> str:
     first_line = clean(raw).splitlines()[0] if clean(raw) else ""
     return re.sub(r"\s+", "", first_line)
+
+
+def detect_selection_group_for_row_wongsang(ws: Worksheet, row: int, data_start: int) -> Tuple[str, str, str, str, str, str, str]:
+    col_gubun = COL.get("구분")
+    if not col_gubun:
+        return "", "", "", "", "", "", ""
+
+    group_name = clean(ws.cell(row, col_gubun).value)
+    if not group_name:
+        return "", "", "", "", "", "", ""
+
+    row_start = row
+    row_end = row
+    while row_start > data_start and clean(ws.cell(row_start - 1, col_gubun).value) == group_name:
+        row_start -= 1
+    while row_end < ws.max_row and clean(ws.cell(row_end + 1, col_gubun).value) == group_name:
+        row_end += 1
+    row_range = f"{row_start}:{row_end}"
+
+    semester = ""
+    credit_val = ""
+    for r in range(row_start, row_end + 1):
+        for sem, col_idx in SEMESTER_COLS.items():
+            val = clean(ws.cell(r, col_idx).value)
+            if val:
+                num = extract_first_number(val)
+                if num:
+                    semester = sem
+                    credit_val = num
+                    break
+        if semester:
+            break
+
+    if not semester:
+        return "", "", "", "", "", "", row_range
+
+    col_total = COL.get("편성학점합")
+    total_credit = ""
+    if col_total:
+        for r in range(row_start, row_end + 1):
+            val = clean(ws.cell(r, col_total).value)
+            if val:
+                total_credit = val
+                break
+
+    if not total_credit:
+        total_credit = credit_val
+
+    try:
+        choose_count = str(int(float(total_credit) // float(credit_val)))
+    except:
+        choose_count = "1"
+
+    raw = f"택{choose_count} ({credit_val})"
+    code = f"{semester}-{group_name}"
+
+    return raw, code, semester, choose_count, credit_val, total_credit, row_range
 
 
 def detect_selection_group_for_row(ws: Worksheet, row: int, data_start: int) -> Tuple[str, str, str, str, str, str, str]:
@@ -543,20 +667,46 @@ def build_selection_groups(course_rows: List[Dict[str, str]]) -> List[Dict[str, 
 
 def build_course_rows(ws: Worksheet, summary_start: int, data_start: int) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
+    col_gubun = COL.get("구분")
 
     for r in range(data_start, summary_start):
         subject = clean(cell_val(ws, r, "과목명"))
         if not subject:
             continue
 
-        sel_raw, sel_code, sel_sem, sel_choose, sel_credit, sel_total, sel_range = detect_selection_group_for_row(ws, r, data_start)
+        # Skip subtotal and summary rows
+        if any(x in subject for x in ["소계", "총계", "합계", "창의적 체험", "이수학점"]):
+            continue
+
+        is_designated = False
+        is_selection = False
+        if col_gubun and col_gubun >= 1:
+            gubun_val = clean(ws.cell(r, col_gubun).value)
+            gubun_clean = re.sub(r"\s+", "", gubun_val)
+            if "지정" in gubun_clean:
+                is_designated = True
+            elif "선택" in gubun_clean:
+                is_selection = True
+        else:
+            is_designated = true_marker(cell_val(ws, r, "학교지정")) == "True"
+            is_selection = true_marker(cell_val(ws, r, "학년선택")) == "True"
+
+        has_selection_cols = "구분" not in COL
+
+        if is_selection:
+            if not has_selection_cols:
+                sel_raw, sel_code, sel_sem, sel_choose, sel_credit, sel_total, sel_range = detect_selection_group_for_row_wongsang(ws, r, data_start)
+            else:
+                sel_raw, sel_code, sel_sem, sel_choose, sel_credit, sel_total, sel_range = detect_selection_group_for_row(ws, r, data_start)
+        else:
+            sel_raw, sel_code, sel_sem, sel_choose, sel_credit, sel_total, sel_range = "", "", "", "", "", "", ""
 
         row: Dict[str, str] = {
             "원본행": str(r),
             "교과군": clean(cell_val(ws, r, "교과군")),
             "과목명": subject,
-            "학교지정": true_marker(cell_val(ws, r, "학교지정")),
-            "학년선택": true_marker(cell_val(ws, r, "학년선택")),
+            "학교지정": "True" if is_designated else "",
+            "학년선택": "True" if is_selection else "",
             "과목유형": course_type(ws, r),
             "비고_전문_고시외_표6": split_note_suffix(cell_val(ws, r, "비고_전문_고시외_표6")),
             "학생선택_원문": sel_raw,
@@ -581,7 +731,10 @@ def build_course_rows(ws: Worksheet, summary_start: int, data_start: int) -> Lis
         for sem in SEMESTER_COLS.keys():
             original = number_text(cell_val(ws, r, sem))
             row[f"{sem}_원본"] = original
-            row[f"{sem}_학점"] = extract_first_number(original)
+            if is_selection and not has_selection_cols and sel_sem == sem:
+                row[f"{sem}_학점"] = sel_credit
+            else:
+                row[f"{sem}_학점"] = extract_first_number(original)
 
         rows.append(row)
 
@@ -590,16 +743,26 @@ def build_course_rows(ws: Worksheet, summary_start: int, data_start: int) -> Lis
 
 def build_summary_rows(ws: Worksheet, summary_start: int) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
-    col_required = COL.get("필수이수학점", 21)
+    col_limit = COL.get("필수이수학점")
+    if not col_limit:
+        col_limit = COL.get("편성학점합")
+    if not col_limit:
+        col_limit = 21
+
+    col_gubun = COL.get("구분")
 
     for r in range(summary_start, ws.max_row + 1):
-        values = [clean(ws.cell(r, c).value) for c in range(1, col_required + 1)]
+        values = [clean(ws.cell(r, c).value) for c in range(1, col_limit + 1)]
         if not any(values):
             continue
 
+        hangmok_val = clean(cell_val(ws, r, "교과군"))
+        if not hangmok_val and col_gubun:
+            hangmok_val = clean(ws.cell(r, col_gubun).value)
+
         row = {
             "원본행": str(r),
-            "항목": clean(cell_val(ws, r, "교과군")),
+            "항목": hangmok_val,
             "세부항목": clean(cell_val(ws, r, "과목명")),
             "1-1": number_text(cell_val(ws, r, "1-1")),
             "1-2": number_text(cell_val(ws, r, "1-2")),
