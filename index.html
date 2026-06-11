@@ -1236,8 +1236,9 @@
         if (cat.includes('과학')) {
             if (subject.includes('통합과학') || subject.includes('과학탐구실험') || subject.includes('융합과학') || subject.includes('과학의 역사') || subject.includes('과학과제')) return '과학';
             if (subject.includes('물리') || subject.includes('역학') || subject.includes('전자기')) return '물리';
-            if (subject.includes('화학') || subject.includes('물질')) return '화학';
+            // '세포와 물질대사'는 '물질'을 포함하므로, 화학(물질)보다 생명(세포) 판정을 먼저 해야 한다
             if (subject.includes('생명') || subject.includes('생물') || subject.includes('세포')) return '생명';
+            if (subject.includes('화학') || subject.includes('물질')) return '화학';
             if (subject.includes('지구') || subject.includes('행성') || subject.includes('우주')) return '지구과학';
         }
         return cat;
