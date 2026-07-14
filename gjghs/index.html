@@ -1311,7 +1311,7 @@
 
     async function init() {
         try {
-            const response = await fetch("gjghs_2027_curriculum_courses_llm.csv?v=20260714");
+            const response = await fetch("gjghs_2027_curriculum_courses_llm.csv?v=20260714_v2");
             if (!response.ok) throw new Error();
             const text = await response.text();
             await loadSummaryCredits();
@@ -1324,7 +1324,7 @@
 
     async function loadSummaryCredits() {
         try {
-            const response = await fetch("gjghs_2027_curriculum_summary_llm.csv?v=20260714");
+            const response = await fetch("gjghs_2027_curriculum_summary_llm.csv?v=20260714_v2");
             if (!response.ok) return;
             const text = await response.text();
             Papa.parse(text, {

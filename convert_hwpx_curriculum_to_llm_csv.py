@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import html
 import re
 import zipfile
 import xml.etree.ElementTree as ET
@@ -122,6 +123,14 @@ def normalize_space(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def normalize_subject_name(value: str) -> str:
+    """변경 이력까지 한 셀에 남은 경우 최종 확정 과목명만 반환합니다."""
+    subject = normalize_space(html.unescape(clean(value)))
+    if "교과 변경" in subject and "매체 의사소통" in subject:
+        return "매체 의사소통"
+    return subject
+
+
 def parse_hwpx_table(tbl) -> List[List[str]]:
     """HWPX의 좌표 지정 방식 셀들을 분석하여 병합 영역이 모두 복원된 2차원 리스트(Grid)로 반환합니다."""
     max_row = 0
@@ -224,7 +233,7 @@ def main():
     )
     for r in range(3, designated_end):
         row = grid_designated[r]
-        subject = clean(row[3])
+        subject = normalize_subject_name(row[3])
         if not subject:
             continue
             
@@ -279,7 +288,7 @@ def main():
             selection_sources.append((f"Table1_Row{r}", row))
 
     for origin_tag, row in selection_sources:
-        subject = clean(row[4])
+        subject = normalize_subject_name(row[4])
         if not subject:
             continue
             
