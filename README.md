@@ -3,6 +3,21 @@
 > **제작자:** 반곡고등학교 1학년 8반 담임교사 정현민
 > **Copyright (c) 2026 Hyunmin Jeong. All rights reserved.**
 
+## 학교별 페이지
+
+- 반곡고: 저장소 루트의 `index.html`
+- 공주여고: `gjghs/index.html` (`/curriculum_parser/gjghs/`)
+
+공주여고 페이지는 `2027학년도 교육과정 편제(수정안).hwp`를 기준으로 하며, 공식 HWPX 변환본과
+파싱된 CSV를 `gjghs/`에 함께 보관한다.
+
+```powershell
+python convert_hwpx_curriculum_to_llm_csv.py `
+  "gjghs/2027학년도 교육과정 편제(수정안).hwpx" `
+  --outdir gjghs `
+  --prefix gjghs_2027_curriculum
+```
+
 ## 변환 대상
 - 원본 파일: `2026학년도 반곡고등학교 입학생 3개년 교육과정 편성표.xlsx` (또는 임의의 학교 교육과정 편성표 파일)
 - 변환 시트: 시트 자동 감지 지원 (또는 `--sheet`로 지정 가능)

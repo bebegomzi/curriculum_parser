@@ -162,7 +162,7 @@ def parse_hwpx_table(tbl) -> List[List[str]]:
     return grid
 
 
-def extract_selection_meta(raw: str) -> Tuple[str, str]:
+def extract_selection_meta(raw: str) -> str:
     text = clean(raw)
     choose = ""
     
@@ -173,11 +173,16 @@ def extract_selection_meta(raw: str) -> Tuple[str, str]:
     return choose
 
 
+def active_semesters(row: List[str], sem_cols: Dict[str, int]) -> List[str]:
+    """선택군이 실제로 운영되는 모든 학기를 표의 개설 학점 열에서 찾습니다."""
+    return [sem for sem, col_idx in sem_cols.items() if clean(row[col_idx])]
+
+
 def main():
     parser = argparse.ArgumentParser(description="공주여고 HWPX 교육과정 편성표를 LLM용 CSV로 변환합니다.")
     parser.add_argument("input", type=Path, help="입력 HWPX 파일 경로")
     parser.add_argument("--outdir", type=Path, default=None, help="출력 폴더 (기본값: 입력 파일과 동일한 폴더)")
-    parser.add_argument("--prefix", default="gongju_2026_curriculum", help="출력 파일명 prefix. 기본값: gongju_2026_curriculum")
+    parser.add_argument("--prefix", default="gjghs_2027_curriculum", help="출력 파일명 prefix. 기본값: gjghs_2027_curriculum")
     args = parser.parse_args()
 
     outdir = args.outdir if args.outdir else args.input.parent
@@ -212,10 +217,14 @@ def main():
         keywords = ["소계", "총계", "창의적", "동아리", "진로 활동", "자율·자치", "체험활동", "이수 학점"]
         return any(k in joined for k in keywords)
 
-    # 1. 학교 지정 과목 파싱 (Table 0의 Row 3부터 지정과목 소계 전인 Row 37까지)
-    for r in range(3, 38):
+    # 1. 학교 지정 과목 파싱. 소계 행을 기준으로 범위를 찾아 개정안의 행 증감에 대응합니다.
+    designated_end = next(
+        r for r, row in enumerate(grid_designated)
+        if "지정과목 이수 학점 소계" in " ".join(row)
+    )
+    for r in range(3, designated_end):
         row = grid_designated[r]
-        subject = clean(row[4])
+        subject = clean(row[3])
         if not subject:
             continue
             
@@ -252,16 +261,19 @@ def main():
             
         course_rows.append(course_row)
 
-    # 2. 학생 선택 과목 파싱 (Table 0의 Row 39~54, Table 1의 Row 0~41)
+    # 2. 학생 선택 과목 파싱. 각 표의 합계 전까지를 자동으로 수집합니다.
     selection_sources = []
-    # Table 0 선택과목 추가
-    for r in range(39, len(grid_designated)):
+    for r in range(designated_end + 1, len(grid_designated)):
         row = grid_designated[r]
         if not is_summary_or_changement_row(row):
             selection_sources.append((f"Table0_Row{r}", row))
             
     # Table 1 선택과목 추가
-    for r in range(0, 42):
+    selection_end = next(
+        r for r, row in enumerate(grid_selection)
+        if "선택과목 이수학점 소계" in " ".join(row)
+    )
+    for r in range(0, selection_end):
         row = grid_selection[r]
         if not is_summary_or_changement_row(row):
             selection_sources.append((f"Table1_Row{r}", row))
@@ -275,12 +287,9 @@ def main():
         raw_select = clean(row[13]) # e.g. "택2"
         credit = clean(row[6]) # 편성학점
         
-        # 선택 학기 판단 (7~12 열 중 값이 들어가 있는 학기 찾기)
-        active_sem = ""
-        for sem, col_idx in SEM_COLS.items():
-            if clean(row[col_idx]):
-                active_sem = sem
-                break
+        # 선택군 9처럼 여러 학기에 걸친 군도 누락하지 않습니다.
+        active_sems = active_semesters(row, SEM_COLS)
+        active_sem = "/".join(active_sems)
                 
         choose_count = extract_selection_meta(raw_select)
         
@@ -288,8 +297,8 @@ def main():
         total_credit = ""
         if group_name and active_sem:
             sel_code = f"{active_sem}-{group_name}-{raw_select}({credit})"
-            if choose_count and credit:
-                total_credit = str(int(choose_count) * int(credit))
+            # 표의 편성학점 합이 선택군 전체 학점을 가장 정확히 나타냅니다.
+            total_credit = clean(row[14])
 
         course_row = {
             "원본행": origin_tag,
@@ -345,12 +354,11 @@ def main():
             course_rows[idx]["선택군_행범위"] = range_str
 
     # 3. 하단 요약 및 창체 영역 파싱
-    # Table 0 소계 행 (Row 38)
-    # Table 1 요약 행 (Row 42~48)
+    # Table 0 지정과목 소계와 Table 1의 선택과목 소계 이후 요약 행
     summary_sources = [
-        ("Table0_Row38", grid_designated[38]),
+        (f"Table0_Row{designated_end}", grid_designated[designated_end]),
     ]
-    for r in range(42, len(grid_selection)):
+    for r in range(selection_end, len(grid_selection)):
         summary_sources.append((f"Table1_Row{r}", grid_selection[r]))
         
     for tag, row in summary_sources:
