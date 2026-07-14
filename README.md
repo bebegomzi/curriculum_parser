@@ -6,15 +6,16 @@
 ## 학교별 페이지
 
 - 반곡고: 저장소 루트의 `index.html`
-- 공주여고: `gjghs/index.html` (`/curriculum_parser/gjghs/`)
+- 공주여고: `공주여고/index.html` (`/curriculum_parser/공주여고/`)
+- 영문 호환 주소: `gjghs/index.html`이 공주여고 페이지로 이동
 
-공주여고 페이지는 `2027학년도 교육과정 편제(수정안)-변경 후.hwp`를 기준으로 하며, 공식 HWPX 변환본과
-파싱된 CSV를 `gjghs/`에 함께 보관한다.
+공주여고 페이지는 `2027학년도 교육과정 편제(수정안)-변경 후.hwp`의 공식 변환본을 기준으로 한다.
+저장소에는 파서가 직접 읽는 HWPX와 파싱된 CSV를 `공주여고/`에 보관한다.
 
 ```powershell
 python convert_hwpx_curriculum_to_llm_csv.py `
-  "gjghs/2027학년도 교육과정 편제(수정안)-변경 후.hwpx" `
-  --outdir gjghs `
+  "공주여고/2027학년도 교육과정 편제(수정안)-변경 후.hwpx" `
+  --outdir 공주여고 `
   --prefix gjghs_2027_curriculum
 ```
 
