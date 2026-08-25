@@ -1,16 +1,74 @@
-# 2026학년도 입학생 3개년 교육과정 편성표 LLM용 변환 안내
+# 고등학교 교육과정 파서·선택과목 시뮬레이터
 
-> **제작자:** 반곡고등학교 1학년 8반 담임교사 정현민
-> **Copyright (c) 2026 Hyunmin Jeong. All rights reserved.**
+학교 교육과정 편성표를 CSV로 구조화하고, 학생이 3개년 선택과목과 학점을 확인할 수 있게 만든 정적 웹 앱입니다.
 
-## 학교별 페이지
+## 지원 학교
 
-- 반곡고: 저장소 루트의 `index.html`
-- 공주여고: `공주여고/index.html` (`/curriculum_parser/공주여고/`)
-- 영문 호환 주소: `gjghs/index.html`이 공주여고 페이지로 이동
+| 학교 | 기준 | 원본 형식 | 웹 주소 |
+|---|---:|---|---|
+| 반곡고 | 2026학년도 입학생 | XLSX | 저장소 루트 `/curriculum_parser/` |
+| 공주여고 | 2027학년도 입학생 | HWPX | `/curriculum_parser/?school=gjghs` |
+| 웅상고 | 2026학년도 입학생 수정안 | XLSX | `/curriculum_parser/?school=woongsang` |
 
-공주여고 페이지는 `2027학년도 교육과정 편제(수정안)-변경 후.hwp`의 공식 변환본을 기준으로 한다.
-저장소에는 파서가 직접 읽는 HWPX와 파싱된 CSV를 `공주여고/`에 보관한다.
+기존 공주여고 호환 주소와 `/curriculum_parser/woongsang/`, `/curriculum_parser/wshs.html`은 해당 학교 페이지로 자동 이동합니다.
+
+## 구조
+
+```text
+curriculum_parser/
+├─ index.html                         # 모든 학교가 공유하는 시뮬레이터
+├─ course_metadata.js                 # 과목 설명·성적 산출 메타데이터
+├─ admission_recommendations.js       # 대학 권장과목 데이터
+├─ convert_curriculum_to_llm_csv.py   # 범용 XLSX 파서
+├─ convert_hwpx_curriculum_to_llm_csv.py # 공주여고 양식 HWPX 파서
+├─ 반곡고/                            # 원본 XLSX와 검수 CSV
+├─ 공주여고/                          # 원본 HWPX와 검수 CSV, 호환 리디렉션
+├─ gjghs/                             # 영문 호환 리디렉션
+├─ woongsang/                         # 웅상고 원본·보완표·검수 CSV·리디렉션
+├─ references/                        # 파서·권장과목 작성 참고 원자료
+└─ tests/                             # 검수 CSV 기반 회귀 테스트
+```
+
+학교별로 달라지는 웹 설정은 `index.html`의 `SCHOOL_CONFIGS`에 모아 두었습니다. 새 학교는 학교 폴더와 CSV를 추가한 뒤 이 설정에 제목·CSV 경로를 등록하면 됩니다.
+
+## 설치
+
+Python 3.10 이상을 권장합니다.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+## 파싱
+
+### XLSX
+
+시트와 출력 접두사는 자동 감지할 수 있으며, 양식이 모호할 때에는 명시하는 편이 안전합니다.
+
+```powershell
+python convert_curriculum_to_llm_csv.py `
+  "반곡고/2026학년도 반곡고등학교 입학생 3개년 교육과정 편성표.xlsx" `
+  --sheet 반곡고 `
+  --outdir 반곡고 `
+  --prefix bangok_2026_curriculum
+```
+
+웅상고 원본은 과목유형·기본학점 수식이 포함되지 않은 외부 시트 `[1]숨김`을 참조합니다. `woongsang/course_overrides.csv`는 오류가 난 두 필드만 보완하며, 과목명·운영 학점·선택군·합계는 원본 편성표에서 직접 읽습니다.
+
+```powershell
+python convert_curriculum_to_llm_csv.py `
+  "woongsang/2026학년도 입학생 3개년 교육과정 편성 수정(안)_웅상고.xlsx" `
+  --sheet Sheet1 `
+  --outdir woongsang `
+  --prefix woongsang_2026_curriculum `
+  --overrides woongsang/course_overrides.csv
+```
+
+### HWPX
+
+현재 HWPX 파서는 공주여고 2027 편성표의 표 구조에 맞춘 어댑터입니다. 다른 학교 HWPX는 표 좌표를 먼저 확인한 뒤 어댑터를 확장해야 합니다.
 
 ```powershell
 python convert_hwpx_curriculum_to_llm_csv.py `
@@ -19,36 +77,42 @@ python convert_hwpx_curriculum_to_llm_csv.py `
   --prefix gjghs_2027_curriculum
 ```
 
-## 변환 대상
-- 원본 파일: `2026학년도 반곡고등학교 입학생 3개년 교육과정 편성표.xlsx` (또는 임의의 학교 교육과정 편성표 파일)
-- 변환 시트: 시트 자동 감지 지원 (또는 `--sheet`로 지정 가능)
-- 숨김 시트(`<표5>`, `<표6>`, `<표7>` 등)는 이번 CSV 변환에 포함하지 않았음.
+두 파서는 다음 파일을 만듭니다.
 
-## 생성 파일
-1. `bangok_2026_curriculum_courses_llm.csv`
-   - 과목 1개를 1행으로 정리한 LLM용 핵심 표.
-2. `bangok_2026_curriculum_selection_groups_llm.csv`
-   - 병합 셀로 표현된 학생 선택군을 별도 요약한 표.
-3. `bangok_2026_curriculum_summary_llm.csv`
-   - 창의적 체험활동, 학기당 총 이수 학점 등 하단 요약 영역.
-4. `bangok_2026_curriculum_llm_readme.md`
-   - 현재 문서.
+- `*_courses_llm.csv`: 과목 1개당 1행
+- `*_selection_groups_llm.csv`: 학생 선택군별 요약
+- `*_summary_llm.csv`: 학기 합계·창의적 체험활동 요약
+- `*_readme.md`: 원본과 변환 규칙, 생성 행 수
 
-## 주요 해석 규칙
-- 병합된 `교과(군)` 셀은 아래 과목 행에 모두 채워 넣었다.
-- `○` 표시는 CSV에서 `TRUE`로 변환하고, 빈칸은 그대로 비웠다.
-- `과목유형`은 `공통`, `일반`, `진로`, `융합`만 사용했다.
-- 원본의 `<표6>/전문/고시외` 열은 과목유형이 아니라 `비고_전문_고시외_표6` 열로 분리했다.
-- `과학·정보 중점학교`, `사회·인문 중점학교`의 하위 열은 `과학중점`, `정보중점`, `사회중점`, `인문중점`으로 분리했다.
-- 학생 선택군은 같은 원문이라도 운영 학기가 다르면 다른 선택군으로 간주했다.
-  - 예: `2-1-택4(3)`과 `2-2-택4(3)`은 서로 다른 선택군이다.
-- 학생 선택군 과목의 학기별 학점 열에는 원본의 병합된 총합값이 아니라, 과목당 선택 학점만 넣었다.
-  - 예: `택4(3)` 선택군은 해당 학기 열에 과목당 `3`을 기록했다.
-  - 선택군 전체 총합은 `선택군_총학점` 열에 별도로 보존했다.
-- 원본 학기 칸의 숫자는 `학점 = 주당 시수 = 이수 단위 성격`으로 해석했다.
-- 원본의 괄호 표기, 예: `(1)`, `(2)`, `(3)`은 `*_원본` 열에 보존하고, 정규화된 `*_학점` 열에는 일반 숫자 학점만 기록했다.
+## 검증
 
-## 주의
-- 이 CSV는 LLM 입력 안정성을 위한 구조화 파일이다.
-- 원본의 시각적 배치, 병합 셀, 서식은 보존하지 않는다.
-- 숨김 시트의 지침성 자료는 별도 지식 문서로 정리하는 편이 적합하다.
+검수된 반곡고·공주여고·웅상고 CSV와 새 파싱 결과를 비교하고 웹 설정의 CSV 경로도 검사합니다.
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+웹 화면은 `fetch`로 CSV를 읽으므로 파일을 직접 열지 말고 로컬 HTTP 서버를 사용합니다.
+
+```powershell
+python -m http.server 8000
+```
+
+- 반곡고: `http://localhost:8000/`
+- 공주여고: `http://localhost:8000/?school=gjghs`
+- 웅상고: `http://localhost:8000/?school=woongsang`
+
+## 새 학교 추가 순서
+
+1. 학교명 폴더에 원본 편성표를 보관합니다.
+2. XLSX 범용 파서로 먼저 변환하고, 양식 차이가 있으면 감지 규칙을 보완합니다.
+3. 생성 CSV의 과목 수, 선택군 범위·선택 수·과목당 학점, 학기 합계를 원본과 대조합니다.
+4. 검수된 CSV와 원본을 함께 커밋하고 회귀 테스트를 추가합니다.
+5. `SCHOOL_CONFIGS`에 학교 키와 CSV 경로를 등록합니다.
+
+선택군의 병합 셀에는 선택군 전체 학점이 들어갈 수 있습니다. 파서는 원본 총학점을 첫 행에만 보존하고, 개별 과목의 정규화 학점에는 `택N (학점)`에서 읽은 과목당 학점을 기록합니다.
+
+## 제작자
+
+- 세종특별자치시교육청 국어 교사 정현민
+- Copyright (c) 2026 Hyunmin Jeong. All rights reserved.

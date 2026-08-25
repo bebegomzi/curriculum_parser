@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
     <title>반곡고 2026 선택과목 시뮬레이터</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
@@ -710,7 +711,7 @@
 <header>
     <div style="display:flex; align-items:center; gap:8px;">
         <span class="material-icons-round" style="font-size:20px;">route</span>
-        <h1 style="margin:0; font-size:1rem;">반곡고 교육과정 로드맵 시뮬레이터</h1>
+        <h1 id="schoolHeading" style="margin:0; font-size:1rem;">반곡고 교육과정 로드맵 시뮬레이터</h1>
     </div>
     <div style="display:flex; align-items:center; gap:16px;">
         <div id="simStats" style="font-size:0.8rem; opacity:0.9;">
@@ -720,7 +721,7 @@
             <span class="material-icons-round">content_copy</span>
             복사하기
         </button>
-        <div style="font-size:0.75rem; opacity:0.8; border-left: 1px solid rgba(255,255,255,0.3); padding-left:16px;">
+        <div id="schoolCredit" style="font-size:0.75rem; opacity:0.8; border-left: 1px solid rgba(255,255,255,0.3); padding-left:16px;">
             세종 반곡고등학교 교사 정현민 제작
         </div>
     </div>
@@ -796,6 +797,41 @@
 <script src="course_metadata.js"></script>
 <script src="admission_recommendations.js?v=20260528"></script>
 <script>
+    // 학교별로 달라지는 값만 설정으로 분리해 하나의 시뮬레이터를 공유합니다.
+    // 새 학교를 추가할 때에는 파싱된 CSV를 학교 폴더에 둔 뒤 이 설정만 추가합니다.
+    const SCHOOL_CONFIGS = {
+        bangok: {
+            title: "반곡고 2026 선택과목 시뮬레이터",
+            heading: "반곡고 교육과정 로드맵 시뮬레이터",
+            credit: "세종 반곡고등학교 교사 정현민 제작",
+            schoolName: "반곡고",
+            coursesUrl: "반곡고/bangok_2026_curriculum_courses_llm.csv?v=20260528_v2",
+            summaryUrl: "반곡고/bangok_2026_curriculum_summary_llm.csv?v=20260528_v2"
+        },
+        gjghs: {
+            title: "공주여고 2027 선택과목 시뮬레이터",
+            heading: "공주여고 교육과정 로드맵 시뮬레이터",
+            credit: "공주여자고등학교 2027학년도 입학생 교육과정 기준 · 정현민 제작",
+            schoolName: "공주여고",
+            coursesUrl: "공주여고/gjghs_2027_curriculum_courses_llm.csv?v=20260714_v2",
+            summaryUrl: "공주여고/gjghs_2027_curriculum_summary_llm.csv?v=20260714_v2"
+        },
+        woongsang: {
+            title: "웅상고 2026 선택과목 시뮬레이터",
+            heading: "웅상고 교육과정 로드맵 시뮬레이터",
+            credit: "웅상고등학교 2026학년도 입학생 교육과정 기준 · 정현민 제작 (교사 임제승 의뢰)",
+            schoolName: "웅상고",
+            coursesUrl: "woongsang/woongsang_2026_curriculum_courses_llm.csv?v=20260825",
+            summaryUrl: "woongsang/woongsang_2026_curriculum_summary_llm.csv?v=20260825"
+        }
+    };
+    const requestedSchool = new URLSearchParams(window.location.search).get("school");
+    const schoolKey = requestedSchool === "gongju" ? "gjghs" : requestedSchool;
+    const schoolConfig = SCHOOL_CONFIGS[schoolKey] || SCHOOL_CONFIGS.bangok;
+    document.title = schoolConfig.title;
+    document.getElementById("schoolHeading").textContent = schoolConfig.heading;
+    document.getElementById("schoolCredit").textContent = schoolConfig.credit;
+
     let rawData = [];
     let selectedCourses = new Set();
     const semesters = ["1-1", "1-2", "2-1", "2-2", "3-1", "3-2"];
@@ -1311,7 +1347,7 @@
 
     async function init() {
         try {
-            const response = await fetch("반곡고/bangok_2026_curriculum_courses_llm.csv?v=20260528_v2");
+            const response = await fetch(schoolConfig.coursesUrl);
             if (!response.ok) throw new Error();
             const text = await response.text();
             await loadSummaryCredits();
@@ -1324,7 +1360,7 @@
 
     async function loadSummaryCredits() {
         try {
-            const response = await fetch("반곡고/bangok_2026_curriculum_summary_llm.csv?v=20260528_v2");
+            const response = await fetch(schoolConfig.summaryUrl);
             if (!response.ok) return;
             const text = await response.text();
             Papa.parse(text, {
@@ -1917,7 +1953,7 @@
             return `<div class="admission-offering">
                 <div>
                     <div class="admission-offering-name">${escapeHtml(courseName)}</div>
-                    <div class="admission-unavailable">반곡고 교육과정에 개설되어 있지 않습니다.</div>
+                    <div class="admission-unavailable">${escapeHtml(schoolConfig.schoolName)} 교육과정에 개설되어 있지 않습니다.</div>
                 </div>
             </div>`;
         }

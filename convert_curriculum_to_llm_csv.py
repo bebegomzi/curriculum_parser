@@ -32,7 +32,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 # ===== 고정 레이아웃 설정 (기본값) =====
 
-COL = {
+DEFAULT_COL = {
     "교과군": 1,                 # A
     "과목명": 2,                 # B
     "학교지정": 3,               # C
@@ -61,7 +61,7 @@ COL = {
     "캠공개설여부": 26,          # Z
 }
 
-SEMESTER_COLS = {
+DEFAULT_SEMESTER_COLS = {
     "1-1": 13,
     "1-2": 14,
     "2-1": 15,
@@ -69,6 +69,11 @@ SEMESTER_COLS = {
     "3-1": 17,
     "3-2": 18,
 }
+
+# 변환을 여러 번 호출해도 이전 파일에서 감지한 열 정보가 다음 파일에
+# 남지 않도록, 실행마다 아래 두 매핑을 기본값에서 새로 구성합니다.
+COL = DEFAULT_COL.copy()
+SEMESTER_COLS = DEFAULT_SEMESTER_COLS.copy()
 
 COURSE_FIELDNAMES = [
     "원본행",
@@ -223,10 +228,33 @@ def normalize_space(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
-def cell_val(ws: Worksheet, row: int, col_name: str) -> Any:
+def cell_val(
+    ws: Worksheet,
+    row: int,
+    col_name: str,
+    *,
+    fill_vertical: bool = True,
+    fill_horizontal: bool = True,
+) -> Any:
+    """의미에 맞게 병합 셀 전파 여부를 제어해 셀 값을 반환합니다.
+
+    교과군·선택군처럼 범주를 나타내는 값은 세로 병합을 전파해야 하지만,
+    학기별 총학점·교과군 합계는 병합 영역의 첫 행에만 남겨야 합니다.
+    ``copy_ws_with_filled_merges``가 보존한 원래 병합 범위를 이용해 두 경우를
+    구분합니다.
+    """
     col_idx = COL.get(col_name)
     if col_idx is None or col_idx < 1:
         return None
+
+    merge_map = getattr(ws, "_curriculum_merge_map", {})
+    merged = merge_map.get((row, col_idx))
+    if merged:
+        min_row, min_col, _, _ = merged
+        if not fill_vertical and row > min_row:
+            return None
+        if not fill_horizontal and col_idx > min_col:
+            return None
     return ws.cell(row, col_idx).value
 
 
@@ -241,10 +269,45 @@ def number_text(value: Any) -> str:
     return clean(value)
 
 
+def is_unresolved_formula_value(value: Any) -> bool:
+    """외부 참조가 끊긴 수식의 빈 값이나 Excel 오류값인지 확인합니다."""
+    text = clean(value)
+    return not text or text.startswith("#")
+
+
+def load_course_overrides(path: Optional[Path]) -> Dict[str, Dict[str, str]]:
+    """깨진 외부 수식값을 보완할 과목별 유형·기본학점 표를 읽습니다."""
+    if path is None:
+        return {}
+    if not path.is_file():
+        raise FileNotFoundError(f"과목 보완 자료를 찾을 수 없습니다: {path}")
+
+    overrides: Dict[str, Dict[str, str]] = {}
+    with path.open(encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+        required = {"과목명", "과목유형", "기본학점"}
+        missing = required.difference(reader.fieldnames or [])
+        if missing:
+            raise ValueError(f"과목 보완 자료에 필요한 열이 없습니다: {sorted(missing)}")
+        for row in reader:
+            subject = normalize_space(row.get("과목명", ""))
+            if not subject:
+                continue
+            overrides[subject] = {
+                "과목유형": clean(row.get("과목유형")),
+                "기본학점": clean(row.get("기본학점")),
+            }
+    return overrides
+
+
 def extract_first_number(value: Any) -> str:
     """학기 칸에서 첫 숫자만 학점으로 추출. 예: '3\n(공동)' -> '3'."""
     text = clean(value)
     if not text:
+        return ""
+    # 괄호만 있는 값은 실제 배정 학점이 아니라 다른 학기의 대응 표기입니다.
+    # 원문 열에는 보존하되 정규화 학점에는 넣지 않습니다.
+    if re.fullmatch(r"\(\s*\d+(?:\.\d+)?\s*\)", text):
         return ""
     m = re.search(r"\d+(?:\.\d+)?", text)
     if not m:
@@ -259,12 +322,18 @@ def copy_ws_with_filled_merges(ws: Worksheet) -> Worksheet:
     원본 파일은 변경하지 않습니다.
     """
     new_ws = copy(ws)
+    merge_map: Dict[Tuple[int, int], Tuple[int, int, int, int]] = {}
     for merged in list(new_ws.merged_cells.ranges):
+        bounds = (merged.min_row, merged.min_col, merged.max_row, merged.max_col)
         value = new_ws.cell(merged.min_row, merged.min_col).value
         new_ws.unmerge_cells(str(merged))
         for row in range(merged.min_row, merged.max_row + 1):
             for col in range(merged.min_col, merged.max_col + 1):
+                merge_map[(row, col)] = bounds
                 new_ws.cell(row, col).value = value
+    # openpyxl Worksheet의 복사본에 원본 병합 좌표를 별도 보관합니다.
+    # 이 속성은 파일로 저장하지 않으며 현재 변환 과정에서만 사용됩니다.
+    new_ws._curriculum_merge_map = merge_map
     return new_ws
 
 
@@ -316,26 +385,29 @@ def find_header_start_row(ws: Worksheet) -> int:
 def detect_columns(ws: Worksheet, header_start: int) -> Dict[str, int]:
     """3줄의 헤더 행 텍스트 조합을 스캔하여 각각의 데이터 열 인덱스를 동적으로 매핑합니다."""
     global SEMESTER_COLS
-    col_map = COL.copy()
+    col_map = DEFAULT_COL.copy()
     
     # Check if Wongsang style by reading the first cell in header_start row
     first_cell = clean(ws.cell(header_start, 1).value)
     if first_cell == "구분":
-        # Wongsang layout is fixed!
-        col_map["구분"] = 1
-        col_map["교과군"] = 2
-        col_map["과목유형_단일열"] = 3
-        col_map["과목명"] = 4
-        col_map["기본학점"] = 5
-        col_map["편성학점"] = 6
-        col_map["1-1"] = 7
-        col_map["1-2"] = 8
-        col_map["2-1"] = 9
-        col_map["2-2"] = 10
-        col_map["3-1"] = 11
-        col_map["3-2"] = 12
-        col_map["편성학점합"] = 13
-        col_map["교과군별이수학점"] = 13  # fallback
+        # '구분' 단일 열을 쓰는 15열 양식. 기본 26열 매핑을 섞으면
+        # 학기 열이 비고/필수이수 열로 잘못 해석되므로 필요한 열만 둡니다.
+        col_map = {
+            "구분": 1,
+            "교과군": 2,
+            "과목유형_단일열": 3,
+            "과목명": 4,
+            "기본학점": 5,
+            "편성학점": 6,
+            "1-1": 7,
+            "1-2": 8,
+            "2-1": 9,
+            "2-2": 10,
+            "3-1": 11,
+            "3-2": 12,
+            "편성학점합": 13,
+            "교과군별이수학점": 13,
+        }
         
         # Update SEMESTER_COLS
         SEMESTER_COLS = {
@@ -472,8 +544,20 @@ def extract_school_and_year(input_path: Path, ws: Worksheet) -> Tuple[Optional[s
 
 def update_column_mapping(ws: Worksheet, header_start: int) -> None:
     global COL
-    detected = detect_columns(ws, header_start)
-    COL.update(detected)
+    COL = detect_columns(ws, header_start)
+
+
+def find_data_start_row(ws: Worksheet, header_start: int) -> int:
+    """다단 헤더 아래에서 실제 첫 과목 행을 찾습니다."""
+    for row in range(header_start + 1, min(ws.max_row, header_start + 8) + 1):
+        subject = clean(cell_val(ws, row, "과목명", fill_vertical=False, fill_horizontal=False))
+        if not subject or normalize_space(subject) in {"과목", "과목명"}:
+            continue
+        semester_value = any(clean(cell_val(ws, row, semester)) for semester in SEMESTER_COLS)
+        operating_credit = clean(cell_val(ws, row, "편성학점"))
+        if semester_value or operating_credit:
+            return row
+    raise ValueError("헤더 아래에서 첫 과목 행을 찾지 못했습니다. 원본 표 구조를 확인하세요.")
 
 
 # ===== 비즈니스 파싱 로직 =====
@@ -485,10 +569,17 @@ def find_summary_start_row(ws: Worksheet, data_start: int) -> int:
     """
     for r in range(data_start, ws.max_row + 1):
         a = clean(cell_val(ws, r, "교과군"))
-        b = clean(cell_val(ws, r, "과목명"))
+        b = clean(cell_val(ws, r, "과목명", fill_vertical=False, fill_horizontal=False))
         joined = normalize_space(" ".join([a, b]))
+        # 지정과목과 선택과목 사이의 중간 소계는 최종 요약 시작점이 아닙니다.
+        if "학교 지정" in joined and "소계" in joined:
+            continue
         if any(keyword in joined for keyword in ["창의적", "총 이수", "총계", "합계", "학생 선택", "총 교과"]):
             return r
+        # '구분' 양식에서는 한 과목이 여러 교과군 행에 걸쳐 세로 병합될 수
+        # 있으므로, 과목명이 빈 행의 숫자만으로 요약 시작을 추정하지 않습니다.
+        if "구분" in COL and not b:
+            continue
         # 과목명 없이 학기/편성 쪽 숫자만 나오기 시작하면 요약 영역으로 간주
         if r > data_start and not b:
             col_1_1 = COL.get("1-1", 13)
@@ -628,12 +719,17 @@ def detect_selection_group_for_row(ws: Worksheet, row: int, data_start: int) -> 
     if not sel_col:
         return "", "", "", "", "", "", ""
 
-    row_start = row
-    row_end = row
-    while row_start > data_start and clean(ws.cell(row_start - 1, sel_col).value) == raw:
-        row_start -= 1
-    while row_end < ws.max_row and clean(ws.cell(row_end + 1, sel_col).value) == raw:
-        row_end += 1
+    merged = getattr(ws, "_curriculum_merge_map", {}).get((row, sel_col))
+    if merged:
+        row_start, _, row_end, _ = merged
+    else:
+        # 병합되지 않은 양식에서는 연속된 같은 표기를 하나의 선택군으로 봅니다.
+        row_start = row
+        row_end = row
+        while row_start > data_start and clean(ws.cell(row_start - 1, sel_col).value) == raw:
+            row_start -= 1
+        while row_end < ws.max_row and clean(ws.cell(row_end + 1, sel_col).value) == raw:
+            row_end += 1
     row_range = f"{row_start}:{row_end}"
 
     return raw, code, semester, choose, credit, total, row_range
@@ -646,8 +742,11 @@ def build_selection_groups(course_rows: List[Dict[str, str]]) -> List[Dict[str, 
         if not code:
             continue
         start, end = row["선택군_행범위"].split(":")
-        if code not in groups:
-            groups[code] = SelectionGroup(
+        # 같은 학기에 같은 '택1(3)' 표기가 여러 번 등장할 수 있으므로
+        # 표시 코드뿐 아니라 원본 행 범위까지 내부 식별자에 포함합니다.
+        group_key = f"{code}|{start}:{end}"
+        if group_key not in groups:
+            groups[group_key] = SelectionGroup(
                 code=code,
                 semester=row["선택군_학년학기"],
                 raw=row["학생선택_원문"],
@@ -658,19 +757,27 @@ def build_selection_groups(course_rows: List[Dict[str, str]]) -> List[Dict[str, 
                 row_end=int(end),
                 subjects=[],
             )
-        groups[code].subjects.append(row["과목명"])
-        groups[code].row_start = min(groups[code].row_start, int(start))
-        groups[code].row_end = max(groups[code].row_end, int(end))
+        groups[group_key].subjects.append(row["과목명"])
+        groups[group_key].row_start = min(groups[group_key].row_start, int(start))
+        groups[group_key].row_end = max(groups[group_key].row_end, int(end))
 
-    return [groups[k].as_row() for k in sorted(groups.keys())]
+    return [group.as_row() for group in sorted(groups.values(), key=lambda item: item.row_start)]
 
 
-def build_course_rows(ws: Worksheet, summary_start: int, data_start: int) -> List[Dict[str, str]]:
+def build_course_rows(
+    ws: Worksheet,
+    summary_start: int,
+    data_start: int,
+    course_overrides: Optional[Dict[str, Dict[str, str]]] = None,
+) -> List[Dict[str, str]]:
     rows: List[Dict[str, str]] = []
     col_gubun = COL.get("구분")
+    course_overrides = course_overrides or {}
 
     for r in range(data_start, summary_start):
-        subject = clean(cell_val(ws, r, "과목명"))
+        # 과목명이 세로 병합된 행은 같은 과목의 교과군 표시를 나눈 것이므로
+        # 병합 첫 행에서만 한 번 출력합니다.
+        subject = clean(cell_val(ws, r, "과목명", fill_vertical=False, fill_horizontal=False))
         if not subject:
             continue
 
@@ -701,13 +808,21 @@ def build_course_rows(ws: Worksheet, summary_start: int, data_start: int) -> Lis
         else:
             sel_raw, sel_code, sel_sem, sel_choose, sel_credit, sel_total, sel_range = "", "", "", "", "", "", ""
 
+        override = course_overrides.get(normalize_space(subject), {})
+        parsed_type = course_type(ws, r)
+        if is_unresolved_formula_value(parsed_type):
+            parsed_type = override.get("과목유형", "")
+        parsed_base_credit = number_text(cell_val(ws, r, "기본학점"))
+        if is_unresolved_formula_value(parsed_base_credit):
+            parsed_base_credit = override.get("기본학점", "")
+
         row: Dict[str, str] = {
             "원본행": str(r),
             "교과군": clean(cell_val(ws, r, "교과군")),
             "과목명": subject,
             "학교지정": "True" if is_designated else "",
             "학년선택": "True" if is_selection else "",
-            "과목유형": course_type(ws, r),
+            "과목유형": parsed_type,
             "비고_전문_고시외_표6": split_note_suffix(cell_val(ws, r, "비고_전문_고시외_표6")),
             "학생선택_원문": sel_raw,
             "선택군_코드": sel_code,
@@ -716,10 +831,10 @@ def build_course_rows(ws: Worksheet, summary_start: int, data_start: int) -> Lis
             "선택군_과목당학점": sel_credit,
             "선택군_총학점": sel_total,
             "선택군_행범위": sel_range,
-            "기본학점": number_text(cell_val(ws, r, "기본학점")),
-            "편성학점": number_text(cell_val(ws, r, "편성학점")),
-            "교과군별이수학점": number_text(cell_val(ws, r, "교과군별이수학점")),
-            "필수이수학점": number_text(cell_val(ws, r, "필수이수학점")),
+            "기본학점": parsed_base_credit,
+            "편성학점": number_text(cell_val(ws, r, "편성학점", fill_vertical=False, fill_horizontal=False)),
+            "교과군별이수학점": number_text(cell_val(ws, r, "교과군별이수학점", fill_vertical=False, fill_horizontal=False)),
+            "필수이수학점": number_text(cell_val(ws, r, "필수이수학점", fill_vertical=False, fill_horizontal=False)),
             "과학중점": true_marker(cell_val(ws, r, "과학중점")),
             "정보중점": true_marker(cell_val(ws, r, "정보중점")),
             "사회중점": true_marker(cell_val(ws, r, "사회중점")),
@@ -729,9 +844,12 @@ def build_course_rows(ws: Worksheet, summary_start: int, data_start: int) -> Lis
         }
 
         for sem in SEMESTER_COLS.keys():
-            original = number_text(cell_val(ws, r, sem))
+            # 학기 총학점이 여러 과목 행에 세로 병합돼 있어도 원본값은
+            # 병합의 첫 행에만 기록합니다. 가로 병합은 '(1)'처럼 양 학기에
+            # 동일하게 적용되는 표기이므로 전파합니다.
+            original = number_text(cell_val(ws, r, sem, fill_vertical=False))
             row[f"{sem}_원본"] = original
-            if is_selection and not has_selection_cols and sel_sem == sem:
+            if is_selection and sel_sem == sem and sel_credit:
                 row[f"{sem}_학점"] = sel_credit
             else:
                 row[f"{sem}_학점"] = extract_first_number(original)
@@ -739,6 +857,22 @@ def build_course_rows(ws: Worksheet, summary_start: int, data_start: int) -> Lis
         rows.append(row)
 
     return rows
+
+
+def validate_course_rows(course_rows: List[Dict[str, str]]) -> None:
+    """웹 화면에 필요한 핵심 과목값이 모두 정상인지 검사합니다."""
+    allowed_types = {"공통", "일반", "진로", "융합"}
+    errors: List[str] = []
+    for row in course_rows:
+        subject = row["과목명"]
+        if row["과목유형"] not in allowed_types:
+            errors.append(f"{subject}: 과목유형={row['과목유형'] or '빈값'}")
+        if not re.fullmatch(r"\d+(?:\.\d+)?", row["기본학점"]):
+            errors.append(f"{subject}: 기본학점={row['기본학점'] or '빈값'}")
+    if errors:
+        preview = "; ".join(errors[:8])
+        suffix = f" 외 {len(errors) - 8}건" if len(errors) > 8 else ""
+        raise ValueError(f"과목 핵심값을 확정하지 못했습니다: {preview}{suffix}. --overrides를 확인하세요.")
 
 
 def build_summary_rows(ws: Worksheet, summary_start: int) -> List[Dict[str, str]]:
@@ -763,16 +897,16 @@ def build_summary_rows(ws: Worksheet, summary_start: int) -> List[Dict[str, str]
         row = {
             "원본행": str(r),
             "항목": hangmok_val,
-            "세부항목": clean(cell_val(ws, r, "과목명")),
-            "1-1": number_text(cell_val(ws, r, "1-1")),
-            "1-2": number_text(cell_val(ws, r, "1-2")),
-            "2-1": number_text(cell_val(ws, r, "2-1")),
-            "2-2": number_text(cell_val(ws, r, "2-2")),
-            "3-1": number_text(cell_val(ws, r, "3-1")),
-            "3-2": number_text(cell_val(ws, r, "3-2")),
-            "편성": number_text(cell_val(ws, r, "편성학점")),
-            "교과군별이수학점": number_text(cell_val(ws, r, "교과군별이수학점")),
-            "필수이수학점": number_text(cell_val(ws, r, "필수이수학점")),
+            "세부항목": clean(cell_val(ws, r, "과목명", fill_horizontal=False)),
+            "1-1": number_text(cell_val(ws, r, "1-1", fill_vertical=False, fill_horizontal=False)),
+            "1-2": number_text(cell_val(ws, r, "1-2", fill_vertical=False, fill_horizontal=False)),
+            "2-1": number_text(cell_val(ws, r, "2-1", fill_vertical=False, fill_horizontal=False)),
+            "2-2": number_text(cell_val(ws, r, "2-2", fill_vertical=False, fill_horizontal=False)),
+            "3-1": number_text(cell_val(ws, r, "3-1", fill_vertical=False, fill_horizontal=False)),
+            "3-2": number_text(cell_val(ws, r, "3-2", fill_vertical=False, fill_horizontal=False)),
+            "편성": number_text(cell_val(ws, r, "편성학점", fill_vertical=False, fill_horizontal=False)),
+            "교과군별이수학점": number_text(cell_val(ws, r, "교과군별이수학점", fill_vertical=False, fill_horizontal=False)),
+            "필수이수학점": number_text(cell_val(ws, r, "필수이수학점", fill_vertical=False, fill_horizontal=False)),
             "비고": "",
         }
         if any(v for k, v in row.items() if k != "원본행"):
@@ -789,7 +923,23 @@ def write_csv(path: Path, fieldnames: List[str], rows: Iterable[Dict[str, str]])
             writer.writerow(row)
 
 
-def write_readme(path: Path, source_file: str, sheet: str, course_count: int, group_count: int, summary_count: int) -> None:
+def write_readme(
+    path: Path,
+    source_file: str,
+    sheet: str,
+    course_count: int,
+    group_count: int,
+    summary_count: int,
+    overrides_file: Optional[str] = None,
+) -> None:
+    override_note = ""
+    if overrides_file:
+        override_note = f"""
+## 보완 자료
+- 파일: `{overrides_file}`
+- 원본의 외부 참조 수식이 비어 있거나 오류값이면 과목유형과 기본학점만 이 표에서 보완했다.
+
+"""
     text = f"""# 교육과정 편성표 LLM용 CSV 해석 규칙
 
 ## 원본
@@ -811,7 +961,7 @@ def write_readme(path: Path, source_file: str, sheet: str, course_count: int, gr
 6. 학생 선택군은 같은 원문이라도 운영 학년-학기가 다르면 별도 선택군으로 본다. 예: `2-1-택4(3)`과 `2-2-택4(3)`은 다른 선택군이다.
 7. `과학중점`, `정보중점`, `사회중점`, `인문중점`은 별도 boolean 열로 분리한다.
 
-## 생성 결과 개수
+{override_note}## 생성 결과 개수
 - 과목 행: {course_count}
 - 선택군: {group_count}
 - 요약 행: {summary_count}
@@ -819,7 +969,13 @@ def write_readme(path: Path, source_file: str, sheet: str, course_count: int, gr
     path.write_text(text, encoding="utf-8")
 
 
-def convert(input_path: Path, sheet_name: Optional[str], outdir: Path, prefix: Optional[str]) -> Tuple[Dict[str, Path], str, str]:
+def convert(
+    input_path: Path,
+    sheet_name: Optional[str],
+    outdir: Path,
+    prefix: Optional[str],
+    overrides_path: Optional[Path] = None,
+) -> Tuple[Dict[str, Path], str, str]:
     wb = load_workbook(input_path, data_only=True)
     
     # 1. 시트 자동 감지
@@ -833,6 +989,7 @@ def convert(input_path: Path, sheet_name: Optional[str], outdir: Path, prefix: O
     # 2. 헤더 시작 행 감지 및 열 매핑 업데이트
     header_start = find_header_start_row(ws)
     update_column_mapping(ws, header_start)
+    data_start = find_data_start_row(ws, header_start)
     
     # 3. 학교 및 연도 감지
     school, year = extract_school_and_year(input_path, ws)
@@ -847,9 +1004,11 @@ def convert(input_path: Path, sheet_name: Optional[str], outdir: Path, prefix: O
         parts.append("curriculum")
         prefix = "_".join(parts)
 
-    summary_start = find_summary_start_row(ws, header_start + 3)
+    summary_start = find_summary_start_row(ws, data_start)
 
-    course_rows = build_course_rows(ws, summary_start, header_start + 3)
+    course_overrides = load_course_overrides(overrides_path)
+    course_rows = build_course_rows(ws, summary_start, data_start, course_overrides)
+    validate_course_rows(course_rows)
     selection_rows = build_selection_groups(course_rows)
     summary_rows = build_summary_rows(ws, summary_start)
 
@@ -862,7 +1021,15 @@ def convert(input_path: Path, sheet_name: Optional[str], outdir: Path, prefix: O
     write_csv(courses_path, COURSE_FIELDNAMES, course_rows)
     write_csv(groups_path, SELECTION_FIELDNAMES, selection_rows)
     write_csv(summary_path, SUMMARY_FIELDNAMES, summary_rows)
-    write_readme(readme_path, input_path.name, sheet_name, len(course_rows), len(selection_rows), len(summary_rows))
+    write_readme(
+        readme_path,
+        input_path.name,
+        sheet_name,
+        len(course_rows),
+        len(selection_rows),
+        len(summary_rows),
+        overrides_path.name if overrides_path else None,
+    )
 
     res_paths = {
         "courses": courses_path,
@@ -879,10 +1046,11 @@ def main() -> None:
     parser.add_argument("--sheet", default=None, help="변환할 시트명 (기본값: 자동으로 탐색)")
     parser.add_argument("--outdir", type=Path, default=None, help="출력 폴더 (기본값: 입력 파일과 동일한 폴더)")
     parser.add_argument("--prefix", default=None, help="출력 파일명 prefix (기본값: 학교명과 학년도를 기준으로 자동 감지)")
+    parser.add_argument("--overrides", type=Path, default=None, help="깨진 수식값을 보완할 과목명/과목유형/기본학점 CSV")
     args = parser.parse_args()
 
     outdir = args.outdir if args.outdir else args.input.parent
-    paths, sheet_name, prefix = convert(args.input, args.sheet, outdir, args.prefix)
+    paths, sheet_name, prefix = convert(args.input, args.sheet, outdir, args.prefix, args.overrides)
     print(f"변환 완료 (시트: {sheet_name}, 접두사: {prefix})")
     for key, path in paths.items():
         print(f"- {key}: {path}")

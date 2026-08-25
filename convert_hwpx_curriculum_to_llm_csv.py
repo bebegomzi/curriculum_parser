@@ -187,6 +187,14 @@ def active_semesters(row: List[str], sem_cols: Dict[str, int]) -> List[str]:
     return [sem for sem, col_idx in sem_cols.items() if clean(row[col_idx])]
 
 
+def find_row_containing(grid: List[List[str]], text: str, table_name: str) -> int:
+    """필수 구분 행을 찾고, 양식이 달라졌을 때 이해하기 쉬운 오류를 냅니다."""
+    for index, row in enumerate(grid):
+        if text in " ".join(row):
+            return index
+    raise ValueError(f"{table_name}에서 '{text}' 행을 찾지 못했습니다. 원본 표 구조를 확인하세요.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="공주여고 HWPX 교육과정 편성표를 LLM용 CSV로 변환합니다.")
     parser.add_argument("input", type=Path, help="입력 HWPX 파일 경로")
@@ -197,9 +205,12 @@ def main():
     outdir = args.outdir if args.outdir else args.input.parent
 
     print(f"Loading HWPX: {args.input}")
-    z = zipfile.ZipFile(args.input)
-    tree = ET.parse(z.open("Contents/section0.xml"))
-    root = tree.getroot()
+    try:
+        with zipfile.ZipFile(args.input) as archive:
+            with archive.open("Contents/section0.xml") as section:
+                root = ET.parse(section).getroot()
+    except KeyError as error:
+        raise ValueError("HWPX에서 Contents/section0.xml을 찾지 못했습니다.") from error
 
     # 테이블 검색
     tbls = [e for e in root.iter() if e.tag.endswith('tbl')]
@@ -221,15 +232,16 @@ def main():
     SEMESTERS = ["1-1", "1-2", "2-1", "2-2", "3-1", "3-2"]
     SEM_COLS = {sem: 7 + idx for idx, sem in enumerate(SEMESTERS)}
 
-    def is_summary_or_changement_row(row: List[str]) -> bool:
+    def is_summary_row(row: List[str]) -> bool:
         joined = " ".join(row).strip()
         keywords = ["소계", "총계", "창의적", "동아리", "진로 활동", "자율·자치", "체험활동", "이수 학점"]
         return any(k in joined for k in keywords)
 
     # 1. 학교 지정 과목 파싱. 소계 행을 기준으로 범위를 찾아 개정안의 행 증감에 대응합니다.
-    designated_end = next(
-        r for r, row in enumerate(grid_designated)
-        if "지정과목 이수 학점 소계" in " ".join(row)
+    designated_end = find_row_containing(
+        grid_designated,
+        "지정과목 이수 학점 소계",
+        "첫 번째 표",
     )
     for r in range(3, designated_end):
         row = grid_designated[r]
@@ -274,17 +286,18 @@ def main():
     selection_sources = []
     for r in range(designated_end + 1, len(grid_designated)):
         row = grid_designated[r]
-        if not is_summary_or_changement_row(row):
+        if not is_summary_row(row):
             selection_sources.append((f"Table0_Row{r}", row))
             
     # Table 1 선택과목 추가
-    selection_end = next(
-        r for r, row in enumerate(grid_selection)
-        if "선택과목 이수학점 소계" in " ".join(row)
+    selection_end = find_row_containing(
+        grid_selection,
+        "선택과목 이수학점 소계",
+        "두 번째 표",
     )
     for r in range(0, selection_end):
         row = grid_selection[r]
-        if not is_summary_or_changement_row(row):
+        if not is_summary_row(row):
             selection_sources.append((f"Table1_Row{r}", row))
 
     for origin_tag, row in selection_sources:
@@ -457,7 +470,7 @@ def write_readme(path: Path, source_file: str, sheet: str, course_count: int, gr
 - `*_readme.md`: 해석 규칙 설명 (본 파일)
 
 ## 변환 원칙
-1. HWPX 내부의 XML 좌표 속성(`cellAddr`, `cellSpan`)을 사용하여 모든 병합 영역을 완벽하게 좌표계에 맵핑 및 복원했다.
+1. HWPX 내부의 XML 좌표 속성(`cellAddr`, `cellSpan`)을 사용하여 병합 영역을 좌표계에 매핑하고 복원했다.
 2. `1-1` ~ `3-2` 의 학기는 해당 학기 편성 학점이다.
 3. 선택군에 속한 개별 과목의 학점 컬럼에는 해당 선택군의 과목당 학점(예: 3 또는 4)을 기록했다.
 
